@@ -10,8 +10,12 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.Toast;
+
+import androidx.appcompat.widget.Toolbar;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +34,19 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
 
+        //
+//        Toolbar toolbar = findViewById(R.id.my_toolbar);
+//
+//        // Optional: Handle menu icon click (replace with your desired action)
+//        ImageView menuIcon = findViewById(R.id.menu_icon);
+//        menuIcon.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                Toast.makeText(MainActivity.this, "Menu clicked!", Toast.LENGTH_SHORT).show();
+//            }
+//        });
+
+        //OpenCV
         if (OpenCVLoader.initLocal()) {
             Log.i(TAG, "OpenCV loaded successfully");
         } else {

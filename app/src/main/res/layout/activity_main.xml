@@ -1,27 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:opencv="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:opencv="http://schemas.android.com/apk/res-auto"
     tools:context=".MainActivity">
 
+    <include
+        android:id="@+id/include"
+        layout="@layout/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        opencv:layout_constraintEnd_toEndOf="parent"
+        opencv:layout_constraintStart_toStartOf="parent"
+        opencv:layout_constraintTop_toTopOf="parent" />
+
     <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" >
+        android:id="@+id/frameLayout"
+        android:layout_width="392dp"
+        android:layout_height="503dp"
+        opencv:layout_constraintEnd_toEndOf="parent"
+        opencv:layout_constraintStart_toStartOf="parent"
+        opencv:layout_constraintTop_toBottomOf="@+id/include">
 
         <!-- [camera_view] -->
         <org.opencv.android.JavaCameraView
+            android:id="@+id/activity_java_surface_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone"
-            android:id="@+id/activity_java_surface_view"
-            opencv:show_fps="true"
-            opencv:camera_id="any" />
+            opencv:camera_id="any"
+            opencv:show_fps="true" />
+
         <!-- [camera_view] -->
 
     </FrameLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_flip_camera"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:layout_marginTop="29dp"
+        android:clickable="true"
+        android:src="@drawable/flip_camera"
+        opencv:backgroundTint="#FFFFFF"
+        opencv:fabSize="mini"
+        opencv:layout_constraintStart_toEndOf="@+id/switch2"
+        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_record"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="29dp"
+        android:layout_marginEnd="46dp"
+        android:clickable="true"
+        android:src="@drawable/start_record_icon"
+        opencv:backgroundTint="#FFFFFF"
+        opencv:borderWidth="0dp"
+        opencv:fabSize="normal"
+        opencv:layout_constraintEnd_toStartOf="@+id/fab_flip_camera"
+        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="29dp"
+        android:layout_marginEnd="46dp"
+        android:clickable="true"
+        android:src="@drawable/timer_icon"
+        opencv:backgroundTint="#FFFFFF"
+        opencv:fabSize="mini"
+        opencv:layout_constraintEnd_toStartOf="@+id/fab_record"
+        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+
+    <Switch
+        android:id="@+id/switch2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Voice Feedback"
+        opencv:layout_constraintBottom_toBottomOf="parent"
+        opencv:layout_constraintEnd_toEndOf="parent"
+        opencv:layout_constraintStart_toStartOf="parent"
+        opencv:layout_constraintTop_toBottomOf="@+id/fab_record" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
