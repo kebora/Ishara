@@ -8,6 +8,7 @@ import org.opencv.core.Mat;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.core.Core;
+import org.opencv.imgproc.Imgproc;
 
 import android.content.Context;
 import android.hardware.Camera;
@@ -110,6 +111,10 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         Mat dest = new Mat();
         // rotate the mat so that the image is upright
         Core.rotate(inputFrame.rgba(),dest,Core.ROTATE_90_CLOCKWISE);
+        // make the image flipped for the front camera
+        if (cameraIndex == CameraBridgeViewBase.CAMERA_ID_FRONT) {
+            Core.rotate(inputFrame.rgba(),dest,Core.ROTATE_90_COUNTERCLOCKWISE);
+        }
         return dest;
     }
     //check for the availability of the front camera
@@ -131,6 +136,7 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         }
         return false;
     }
+
     // switch camera from front to back and vice versa
     void switchCamera() {
         if (cameraIndex == CameraBridgeViewBase.CAMERA_ID_ANY) {
