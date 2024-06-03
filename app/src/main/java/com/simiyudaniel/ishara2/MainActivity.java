@@ -8,11 +8,18 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.core.Core;
 
+import android.content.Context;
 import android.os.Bundle;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,18 +37,6 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
-
-        //
-//        Toolbar toolbar = findViewById(R.id.my_toolbar);
-//
-//        // Optional: Handle menu icon click (replace with your desired action)
-//        ImageView menuIcon = findViewById(R.id.menu_icon);
-//        menuIcon.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                Toast.makeText(MainActivity.this, "Menu clicked!", Toast.LENGTH_SHORT).show();
-//            }
-//        });
 
         //OpenCV
         if (OpenCVLoader.initLocal()) {
@@ -106,4 +101,20 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         Core.rotate(inputFrame.rgba(),dest,Core.ROTATE_90_CLOCKWISE);
         return dest;
     }
+
+//    private void switchCamera() {
+//        int cameraIndex = CameraBridgeViewBase.CAMERA_ID_ANY;
+//        if (cameraIndex == CameraBridgeViewBase.CAMERA_ID_BACK) {
+//            // First time opening camera, check for front camera availability
+//            cameraIndex = CameraBridgeViewBase.CAMERA_ID_FRONT;
+//        } else {
+//            // Switch between back and front camera
+//            cameraIndex = (cameraIndex == CameraBridgeViewBase.CAMERA_ID_FRONT) ? CameraBridgeViewBase.CAMERA_ID_BACK : CameraBridgeViewBase.CAMERA_ID_FRONT;
+//        }
+//
+//        mOpenCvCameraView.disableView();
+//        mOpenCvCameraView.setCameraIndex(cameraIndex);
+//        mOpenCvCameraView.enableView();
+//    }
+
 }
