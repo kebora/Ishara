@@ -6,16 +6,13 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.core.Core;
 
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
-import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
 import android.widget.Toast;
-
-import androidx.appcompat.widget.Toolbar;
 
 import java.util.Collections;
 import java.util.List;
@@ -104,6 +101,9 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
 
     @Override
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        return inputFrame.rgba();
+        Mat dest = new Mat();
+        // rotate the mat so that the image is upright
+        Core.rotate(inputFrame.rgba(),dest,Core.ROTATE_90_CLOCKWISE);
+        return dest;
     }
 }
