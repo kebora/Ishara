@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <SwitchPreferenceCompat
+        app:key="audio"
+        app:title="Audio"
+        android:summary="Enable/Disable audio feedback"
+        />
+    <SwitchPreferenceCompat
+        app:key="gestures"
+        app:title="Gestures"
+        android:summary="Enable/Disable the use of Gestures"
+        />
+    <Preference
+        app:key="timeout"
+        app:title="App Timeout"
+        app:summary="Time before app automatically exits"/>
+    <Preference
+        app:key="feedback"
+        app:title="Send feedback"
+        app:summary="Report technical issues"/>
+</PreferenceScreen>

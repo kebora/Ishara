@@ -11,6 +11,8 @@ import org.opencv.core.Core;
 import org.opencv.imgproc.Imgproc;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.util.AttributeSet;
@@ -19,6 +21,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -41,6 +44,8 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
 
+    private static final int REQUEST_CAMERA_PERMISSION = 100;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
@@ -58,6 +63,10 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.activity_main);
+        // Check for camera permission at startup
+        if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestCameraPermission();
+        }
 
         mOpenCvCameraView = findViewById(R.id.activity_java_surface_view);
 
@@ -68,6 +77,9 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         // Change the active camera
         FloatingActionButton flipCameraBtn = (FloatingActionButton)findViewById(R.id.fab_flip_camera);
         flipCameraBtn.setOnClickListener(this);
+        // Switch to Settings Activity
+        ImageView settings = (ImageView) findViewById(R.id.menu_icon);
+        settings.setOnClickListener(this);
     }
 
     @Override
@@ -159,6 +171,36 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
     public void onClick(View v) {
         if (v.getId() == R.id.fab_flip_camera){
             switchCamera();
+        }
+        if (v.getId() == R.id.menu_icon){
+//            (Toast.makeText(this,"Settings configured!",Toast.LENGTH_LONG)).show();
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            MainActivity.this.startActivity(intent);
+        }
+    }
+
+    // request for camera permissions
+    private void requestCameraPermission() {
+        if (shouldShowRequestPermissionRationale(android.Manifest.permission.CAMERA)) {
+            // Explain why the app needs camera access
+            Toast.makeText(this, "Camera permission is needed to access camera features", Toast.LENGTH_LONG).show();
+        }
+
+        requestPermissions(new String[]{android.Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted
+                //Toast.makeText(this, "Camera permission granted", Toast.LENGTH_SHORT).show();
+            } else {
+                // Permission denied. Request permission again.
+                Toast.makeText(this, "Camera permission denied. App cannot function without camera access.", Toast.LENGTH_LONG).show();
+                requestCameraPermission();
+            }
         }
     }
 }

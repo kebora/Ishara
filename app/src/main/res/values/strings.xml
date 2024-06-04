@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Ishara</string>
     <string name="menu">A menu for the camera</string>
+    <string name="title_activity_settings">SettingsActivity</string>
 </resources>

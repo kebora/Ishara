@@ -1,0 +1,21 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+
+
+    <PreferenceCategory app:title="Recording Settings">
+
+        <SwitchPreferenceCompat
+            app:key="gestures"
+            app:title="Use Gestures"
+
+            />
+
+        <SwitchPreferenceCompat
+            app:key="audio"
+            app:summaryOff="Enable to have beeps that alert you while recording!"
+            app:summaryOn="You are set to get beep alerts while video recording."
+            app:title="Audio alerts" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
