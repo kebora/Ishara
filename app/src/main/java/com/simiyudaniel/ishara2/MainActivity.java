@@ -10,6 +10,7 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.core.Core;
 import org.opencv.imgproc.Imgproc;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -21,6 +22,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -66,6 +68,7 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         // Check for camera permission at startup
         if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestCameraPermission();
+            requestPermissions(new String[]{Manifest.permission.CAMERA},102);
         }
 
         mOpenCvCameraView = findViewById(R.id.activity_java_surface_view);
@@ -75,7 +78,7 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         mOpenCvCameraView.setCvCameraViewListener(this);
 
         // Change the active camera
-        FloatingActionButton flipCameraBtn = (FloatingActionButton)findViewById(R.id.fab_flip_camera);
+        ImageButton flipCameraBtn = (ImageButton) findViewById(R.id.switch_camera);
         flipCameraBtn.setOnClickListener(this);
         // Switch to Settings Activity
         ImageView settings = (ImageView) findViewById(R.id.menu_icon);
@@ -169,11 +172,10 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
 
     @Override
     public void onClick(View v) {
-        if (v.getId() == R.id.fab_flip_camera){
+        if (v.getId() == R.id.switch_camera){
             switchCamera();
         }
         if (v.getId() == R.id.menu_icon){
-//            (Toast.makeText(this,"Settings configured!",Toast.LENGTH_LONG)).show();
             Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
             MainActivity.this.startActivity(intent);
         }
@@ -195,7 +197,8 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         if (requestCode == REQUEST_CAMERA_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission granted
-                //Toast.makeText(this, "Camera permission granted", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Camera permission granted", Toast.LENGTH_SHORT).show();
+
             } else {
                 // Permission denied. Request permission again.
                 Toast.makeText(this, "Camera permission denied. App cannot function without camera access.", Toast.LENGTH_LONG).show();

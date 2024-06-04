@@ -37,55 +37,50 @@
 
     </FrameLayout>
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_flip_camera"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="7dp"
-        android:layout_marginTop="29dp"
-        android:clickable="true"
-        android:src="@drawable/flip_camera"
-        opencv:backgroundTint="#FFFFFF"
-        opencv:fabSize="mini"
-        opencv:layout_constraintStart_toEndOf="@+id/switch2"
-        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+    <ImageButton
+        android:id="@+id/start_record_btn"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="40dp"
+        android:background="@drawable/rounded_button_background"
+        android:src="@drawable/stop_record_icon"
+        opencv:layout_constraintBottom_toBottomOf="@+id/switch2"
+        opencv:layout_constraintEnd_toStartOf="@+id/switch_camera"
+        opencv:layout_constraintHorizontal_bias="0.5"
+        opencv:layout_constraintStart_toEndOf="@+id/timer_btn"
+        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout"
+        opencv:layout_constraintVertical_bias="0.0" />
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_record"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="29dp"
-        android:layout_marginEnd="46dp"
-        android:clickable="true"
-        android:src="@drawable/start_record_icon"
-        opencv:backgroundTint="#FFFFFF"
-        opencv:borderWidth="0dp"
-        opencv:fabSize="normal"
-        opencv:layout_constraintEnd_toStartOf="@+id/fab_flip_camera"
-        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_timer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="29dp"
-        android:layout_marginEnd="46dp"
-        android:clickable="true"
+    <ImageButton
+        android:id="@+id/timer_btn"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="@drawable/rounded_button_background"
         android:src="@drawable/timer_icon"
-        opencv:backgroundTint="#FFFFFF"
-        opencv:fabSize="mini"
-        opencv:layout_constraintEnd_toStartOf="@+id/fab_record"
-        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+        opencv:layout_constraintEnd_toStartOf="@+id/start_record_btn"
+        opencv:layout_constraintHorizontal_bias="0.5"
+        opencv:layout_constraintStart_toStartOf="parent"
+        opencv:layout_constraintTop_toTopOf="@+id/start_record_btn" />
+
+    <ImageButton
+        android:id="@+id/switch_camera"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="@drawable/rounded_button_background"
+        android:src="@drawable/flip_camera"
+        opencv:layout_constraintEnd_toEndOf="parent"
+        opencv:layout_constraintHorizontal_bias="0.5"
+        opencv:layout_constraintStart_toEndOf="@+id/start_record_btn"
+        opencv:layout_constraintTop_toTopOf="@+id/start_record_btn" />
 
     <Switch
         android:id="@+id/switch2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Voice Feedback"
+        android:layout_marginBottom="10dp"
+        android:text="Face Tracking"
         opencv:layout_constraintBottom_toBottomOf="parent"
         opencv:layout_constraintEnd_toEndOf="parent"
-        opencv:layout_constraintStart_toStartOf="parent"
-        opencv:layout_constraintTop_toBottomOf="@+id/fab_record" />
-
+        opencv:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
