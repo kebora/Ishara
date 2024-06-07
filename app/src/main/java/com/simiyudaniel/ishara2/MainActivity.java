@@ -1,59 +1,45 @@
 package com.simiyudaniel.ishara2;
 
-import org.opencv.android.Camera2Renderer;
 import org.opencv.android.CameraActivity;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
-import org.opencv.core.Core;
-import org.opencv.imgproc.Imgproc;
-
-import android.Manifest;
-import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.hardware.Camera;
+import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.util.AttributeSet;
+import android.os.Environment;
 import android.util.Log;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
-
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
-public class MainActivity extends CameraActivity implements CvCameraViewListener2,View.OnClickListener {
+public class MainActivity extends CameraActivity implements CvCameraViewListener2, View.OnClickListener, SurfaceHolder.Callback {
     private static final String TAG = "OCVSample::Activity";
 
     private CameraBridgeViewBase mOpenCvCameraView;
-
-    private int cameraIndex = CameraBridgeViewBase.CAMERA_ID_ANY;
+    private MediaRecorder mediaRecorder;
+    private boolean isRecording = false;
 
     public MainActivity() {
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
-
-    private static final int REQUEST_CAMERA_PERMISSION = 100;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
 
-        //OpenCV
         if (OpenCVLoader.initLocal()) {
             Log.i(TAG, "OpenCV loaded successfully");
         } else {
@@ -65,37 +51,32 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.activity_main);
-        // Check for camera permission at startup
-        if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            requestCameraPermission();
-            requestPermissions(new String[]{Manifest.permission.CAMERA},102);
-        }
 
-        mOpenCvCameraView = findViewById(R.id.activity_java_surface_view);
+        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.activity_java_surface_view);
 
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
 
         mOpenCvCameraView.setCvCameraViewListener(this);
 
-        // Change the active camera
-        ImageButton flipCameraBtn = (ImageButton) findViewById(R.id.switch_camera);
-        flipCameraBtn.setOnClickListener(this);
-        // Switch to Settings Activity
-        ImageView settings = (ImageView) findViewById(R.id.menu_icon);
-        settings.setOnClickListener(this);
+        ImageButton startRecordBtn = findViewById(R.id.start_record_btn);
+        startRecordBtn.setOnClickListener(this);
+
+        SurfaceHolder holder = mOpenCvCameraView.getHolder();
+        holder.addCallback(this);
     }
 
     @Override
-    public void onPause()
-    {
+    public void onPause() {
         super.onPause();
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.disableView();
+        if (isRecording) {
+            stopRecord();
+        }
     }
 
     @Override
-    public void onResume()
-    {
+    public void onResume() {
         super.onResume();
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.enableView();
@@ -111,10 +92,14 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
         super.onDestroy();
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.disableView();
+        if (isRecording) {
+            stopRecord();
+        }
     }
 
     @Override
     public void onCameraViewStarted(int width, int height) {
+        Toast.makeText(this,"Camera view starts...",Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -123,87 +108,97 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
 
     @Override
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        Mat dest = new Mat();
-        // rotate the mat so that the image is upright
-        Core.rotate(inputFrame.rgba(),dest,Core.ROTATE_90_CLOCKWISE);
-        // make the image flipped for the front camera
-        if (cameraIndex == CameraBridgeViewBase.CAMERA_ID_FRONT) {
-            Core.rotate(inputFrame.rgba(),dest,Core.ROTATE_90_COUNTERCLOCKWISE);
-        }
-        return dest;
-    }
-    //check for the availability of the front camera
-    private static boolean hasFrontCamera(Context context) {
-        if (context == null) return false;
-        // Check for at least one camera
-        int numberOfCameras = Camera.getNumberOfCameras();
-        if (numberOfCameras == 0) {
-            return false;
-        }
-
-        // Loop through all cameras to see if any is front-facing
-        for (int i = 0; i < numberOfCameras; i++) {
-            Camera.CameraInfo info = new Camera.CameraInfo();
-            Camera.getCameraInfo(i, info);
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // switch camera from front to back and vice versa
-    void switchCamera() {
-        if (cameraIndex == CameraBridgeViewBase.CAMERA_ID_ANY) {
-            // First time opening camera, check for front camera availability
-            if (hasFrontCamera(this)){
-                cameraIndex =CameraBridgeViewBase.CAMERA_ID_FRONT;
-            }
-        } else {
-            // Switch between back and front camera
-            cameraIndex = (cameraIndex == CameraBridgeViewBase.CAMERA_ID_FRONT) ? CameraBridgeViewBase.CAMERA_ID_BACK : CameraBridgeViewBase.CAMERA_ID_FRONT;
-        }
-
-        // Disable and re-enable camera view to apply changes
-        mOpenCvCameraView.disableView();
-        mOpenCvCameraView.setCameraIndex(cameraIndex);
-        mOpenCvCameraView.enableView();
+        return inputFrame.rgba();
     }
 
     @Override
     public void onClick(View v) {
-        if (v.getId() == R.id.switch_camera){
-            switchCamera();
-        }
-        if (v.getId() == R.id.menu_icon){
-            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-            MainActivity.this.startActivity(intent);
+        if (v.getId() == R.id.start_record_btn) {
+            if (isRecording) {
+                stopRecord();
+            } else {
+                // todo:change the background asset
+                startRecord();
+            }
         }
     }
 
-    // request for camera permissions
-    private void requestCameraPermission() {
-        if (shouldShowRequestPermissionRationale(android.Manifest.permission.CAMERA)) {
-            // Explain why the app needs camera access
-            Toast.makeText(this, "Camera permission is needed to access camera features", Toast.LENGTH_LONG).show();
+    private void startRecord() {
+        if (prepareMediaRecorder()) {
+            mediaRecorder.start();
+            isRecording = true;
+            Toast.makeText(this, "Recording started...", Toast.LENGTH_SHORT).show();
+            Log.i(TAG, "Recording started...");
+        } else {
+            Toast.makeText(this, "Failed to prepare MediaRecorder", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Failed to prepare MediaRecorder");
+        }
+    }
+
+    private void stopRecord() {
+        try {
+            mediaRecorder.stop();
+        } catch (RuntimeException e) {
+            Log.e(TAG, "RuntimeException stopping MediaRecorder: " + e.getMessage());
+            // Cleanup partially written file
+            mediaRecorder.reset();
+        }
+        mediaRecorder.release();
+        mediaRecorder = null;
+        isRecording = false;
+        Toast.makeText(this, "Recording stopped...", Toast.LENGTH_SHORT).show();
+        Log.i(TAG, "Recording stopped...");
+    }
+
+    private boolean prepareMediaRecorder() {
+        mOpenCvCameraView.disableView();
+
+        mediaRecorder = new MediaRecorder();
+
+        mOpenCvCameraView.enableView();
+
+        // Assuming mOpenCvCameraView is properly initialized and started
+        Surface surface = mOpenCvCameraView.getHolder().getSurface();
+
+        // Configure MediaRecorder
+        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mediaRecorder.setVideoSize(640, 480);
+        mediaRecorder.setVideoFrameRate(30);
+        mediaRecorder.setVideoEncodingBitRate(10000000);
+
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String outputFileName = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES) + "/video_" + timeStamp + ".mp4";
+        mediaRecorder.setOutputFile(outputFileName);
+
+        mediaRecorder.setPreviewDisplay(surface);
+
+        try {
+            mediaRecorder.prepare();
+        } catch (IOException e) {
+            Log.e(TAG, "IOException preparing MediaRecorder: " + e.getMessage());
+            mediaRecorder.release();
+            return false;
         }
 
-        requestPermissions(new String[]{android.Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+        return true;
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted
-                Toast.makeText(this, "Camera permission granted", Toast.LENGTH_SHORT).show();
+    public void surfaceCreated(SurfaceHolder holder) {
+        // Handle surface creation if needed
+    }
 
-            } else {
-                // Permission denied. Request permission again.
-                Toast.makeText(this, "Camera permission denied. App cannot function without camera access.", Toast.LENGTH_LONG).show();
-                requestCameraPermission();
-            }
-        }
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        // Handle surface changes if needed
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        // Handle surface destruction if needed
     }
 }
