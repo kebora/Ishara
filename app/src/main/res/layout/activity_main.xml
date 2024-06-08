@@ -37,13 +37,15 @@
 
     </FrameLayout>
 
+
     <ImageButton
         android:id="@+id/start_record_btn"
         android:layout_width="60dp"
         android:layout_height="60dp"
         android:layout_marginTop="40dp"
+        android:scaleType="centerCrop"
         android:background="@drawable/rounded_button_background"
-        android:src="@drawable/stop_record_icon"
+        android:src="@drawable/start_record_icon"
         opencv:layout_constraintBottom_toBottomOf="@+id/switch2"
         opencv:layout_constraintEnd_toStartOf="@+id/switch_camera"
         opencv:layout_constraintHorizontal_bias="0.5"
@@ -55,7 +57,8 @@
         android:id="@+id/timer_btn"
         android:layout_width="60dp"
         android:layout_height="60dp"
-        android:background="@drawable/rounded_button_background"
+        android:scaleType="center"
+        android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/timer_icon"
         opencv:layout_constraintEnd_toStartOf="@+id/start_record_btn"
         opencv:layout_constraintHorizontal_bias="0.5"
@@ -66,7 +69,8 @@
         android:id="@+id/switch_camera"
         android:layout_width="60dp"
         android:layout_height="60dp"
-        android:background="@drawable/rounded_button_background"
+        android:scaleType="centerInside"
+        android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/flip_camera"
         opencv:layout_constraintEnd_toEndOf="parent"
         opencv:layout_constraintHorizontal_bias="0.5"
