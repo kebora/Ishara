@@ -1,101 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:opencv="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:layout_height="match_parent">
 
-    <include
-        android:id="@+id/include"
-        layout="@layout/toolbar"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        opencv:layout_constraintEnd_toEndOf="parent"
-        opencv:layout_constraintStart_toStartOf="parent"
-        opencv:layout_constraintTop_toTopOf="parent" />
-
-    <FrameLayout
-        android:id="@+id/frameLayout"
+    <TextureView
+        android:id="@+id/texture_view"
         android:layout_width="match_parent"
-        android:layout_height="503dp"
-        opencv:layout_constraintEnd_toEndOf="parent"
-        opencv:layout_constraintStart_toStartOf="parent"
-        opencv:layout_constraintTop_toBottomOf="@+id/include">
+        android:layout_height="match_parent" />
 
-        <!-- [camera_view] -->
-        <org.opencv.android.JavaCameraView
-            android:id="@+id/activity_java_surface_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            opencv:camera_id="any"
-            opencv:show_fps="true" />
-
-        <!-- [camera_view] -->
-
-    </FrameLayout>
-
-
-    <ImageButton
-        android:id="@+id/start_record_btn"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_marginTop="40dp"
-        android:scaleType="centerCrop"
-        android:background="@drawable/rounded_button_background"
-        android:src="@drawable/start_record_icon"
-        opencv:layout_constraintBottom_toBottomOf="@+id/switch2"
-        opencv:layout_constraintEnd_toStartOf="@+id/switch_camera"
-        opencv:layout_constraintHorizontal_bias="0.5"
-        opencv:layout_constraintStart_toEndOf="@+id/timer_btn"
-        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout"
-        opencv:layout_constraintVertical_bias="0.0" />
-
-    <ImageButton
-        android:id="@+id/timer_btn"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:scaleType="center"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/timer_icon"
-        opencv:layout_constraintEnd_toStartOf="@+id/start_record_btn"
-        opencv:layout_constraintHorizontal_bias="0.5"
-        opencv:layout_constraintStart_toStartOf="parent"
-        opencv:layout_constraintTop_toTopOf="@+id/start_record_btn" />
-
-    <ImageButton
-        android:id="@+id/switch_camera"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:scaleType="centerInside"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/flip_camera"
-        opencv:layout_constraintEnd_toEndOf="parent"
-        opencv:layout_constraintHorizontal_bias="0.5"
-        opencv:layout_constraintStart_toEndOf="@+id/start_record_btn"
-        opencv:layout_constraintTop_toTopOf="@+id/start_record_btn" />
-
-    <Switch
-        android:id="@+id/switch2"
+    <Button
+        android:id="@+id/record_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:text="Face Tracking"
-        opencv:layout_constraintBottom_toBottomOf="parent"
-        opencv:layout_constraintEnd_toEndOf="parent"
-        opencv:layout_constraintStart_toStartOf="parent" />
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:text="Start Recording" />
 
-    <TextView
-        android:id="@+id/textview_record_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="-30dp"
-        android:text="recording..."
-        android:textColor="@color/red"
-        opencv:layout_constraintEnd_toEndOf="parent"
-        opencv:layout_constraintStart_toStartOf="parent"
-        opencv:layout_constraintTop_toBottomOf="@+id/frameLayout" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>
