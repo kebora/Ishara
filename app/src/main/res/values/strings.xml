@@ -2,4 +2,8 @@
     <string name="app_name">Ishara</string>
     <string name="menu">A menu for the camera</string>
     <string name="title_activity_settings">SettingsActivity</string>
+    <string name="face_tracking">Face Tracking</string>
+    <string name="switch_camera_view">Switch Camera View</string>
+    <string name="start_record_button">Start Record button</string>
+    <string name="set_timer_button">Set Timer button</string>
 </resources>

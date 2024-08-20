@@ -22,6 +22,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -45,7 +46,7 @@ public class MainActivity extends Activity {
     private boolean isRecording = false;
     private String videoFilePath;
 
-    private Button recordButton;
+    private ImageButton recordButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +56,7 @@ public class MainActivity extends Activity {
         textureView = findViewById(R.id.texture_view);
         textureView.setSurfaceTextureListener(textureListener);
 
-        recordButton = findViewById(R.id.record_button);
+        recordButton = findViewById(R.id.start_record_img_btn);
         recordButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -114,7 +115,9 @@ public class MainActivity extends Activity {
                                 public void run() {
                                     mediaRecorder.start();
                                     isRecording = true;
-                                    recordButton.setText("Stop Recording");
+//                                    recordButton.setText("Stop Recording");
+                                    recordButton.setImageResource(R.drawable.pause_record_icon);
+
                                 }
                             });
                         }
@@ -134,7 +137,8 @@ public class MainActivity extends Activity {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
-            recordButton.setText("Start Recording");
+//            recordButton.setText("Start Recording");
+            recordButton.setImageResource(R.drawable.start_record_icon);
             saveVideoToGallery();
             openCamera();
         }

@@ -44,6 +44,9 @@ android {
 }
 
 dependencies {
+    implementation 'org.tensorflow:tensorflow-lite:2.4.0'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.3.0'
+    implementation 'org.tensorflow:tensorflow-lite-support:0.1.0'
     implementation 'com.arthenica:mobile-ffmpeg-full:4.4'
     implementation "androidx.preference:preference-ktx:1.2.0"
     implementation 'org.jcodec:jcodec:0.2.3'
