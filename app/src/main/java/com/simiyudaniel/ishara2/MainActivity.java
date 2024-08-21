@@ -14,6 +14,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -23,6 +24,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -46,12 +48,37 @@ public class MainActivity extends Activity {
     private boolean isRecording = false;
     private String videoFilePath;
 
-    private ImageButton recordButton;
+    private ImageButton recordButton,timer_img_btn;
+
+    private TextView timerText;
+    private int countDownTime = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //timer functionality
+        timerText = findViewById(R.id.timer_text);
+        timer_img_btn = findViewById(R.id.timer_img_btn);
+
+        timer_img_btn.setOnClickListener(v -> {
+            timerText.setVisibility(View.VISIBLE);
+            new CountDownTimer(countDownTime * 1000, 1000) {
+
+                public void onTick(long millisUntilFinished) {
+                    // Update the TextView every second
+                    int secondsRemaining = (int) (millisUntilFinished / 1000);
+                    timerText.setText(String.valueOf(countDownTime - secondsRemaining));
+                }
+
+                public void onFinish() {
+                    // emit a recording beep
+
+                    timerText.setVisibility(View.GONE);
+                    startRecording();
+                }
+            }.start();
+        });
 
         textureView = findViewById(R.id.texture_view);
         textureView.setSurfaceTextureListener(textureListener);
@@ -137,7 +164,6 @@ public class MainActivity extends Activity {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
-//            recordButton.setText("Start Recording");
             recordButton.setImageResource(R.drawable.start_record_icon);
             saveVideoToGallery();
             openCamera();
