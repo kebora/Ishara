@@ -30,6 +30,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
+import com.simiyudaniel.ishara2.timer.TimerFunction;
+
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -63,21 +65,9 @@ public class MainActivity extends Activity {
 
         timer_img_btn.setOnClickListener(v -> {
             timerText.setVisibility(View.VISIBLE);
-            new CountDownTimer(countDownTime * 1000, 1000) {
+            TimerFunction timerFunction = new TimerFunction(timerText, 10, () -> startRecording());
 
-                public void onTick(long millisUntilFinished) {
-                    // Update the TextView every second
-                    int secondsRemaining = (int) (millisUntilFinished / 1000);
-                    timerText.setText(String.valueOf(countDownTime - secondsRemaining));
-                }
-
-                public void onFinish() {
-                    // emit a recording beep
-
-                    timerText.setVisibility(View.GONE);
-                    startRecording();
-                }
-            }.start();
+            timerFunction.startCountdown();
         });
 
         textureView = findViewById(R.id.texture_view);
