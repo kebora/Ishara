@@ -35,6 +35,14 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <FrameLayout
+        android:id="@+id/frame_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/start_record_img_btn"
+        app:layout_constraintStart_toStartOf="parent"
+        >
     <ImageButton
         android:id="@+id/timer_img_btn"
         android:layout_width="65dp"
@@ -46,11 +54,26 @@
         app:layout_constraintEnd_toStartOf="@+id/start_record_img_btn"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <TextView
+        android:id="@+id/tag_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="10s"
+        android:textColor="@color/red"
+        android:background="@drawable/rounded_button_background"
+        android:padding="5dp"
+        android:layout_gravity="top|end"
+        android:textSize="14sp"
+        android:visibility="visible"
+        android:elevation="4dp"/>
+
+</FrameLayout>
+
     <ImageButton
         android:id="@+id/switch_camera_img_btn"
         android:layout_width="65dp"
         android:layout_height="65dp"
-        android:layout_alignRight="@id/timer_img_btn"
+        android:layout_alignRight="@id/frame_timer"
         android:layout_marginBottom="20dp"
         android:background="@drawable/rounded_btn_alt_bg"
         android:src="@drawable/flip_camera"

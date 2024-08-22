@@ -14,15 +14,12 @@ import android.hardware.camera2.CaptureRequest;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -50,16 +47,14 @@ public class MainActivity extends Activity {
     private boolean isRecording = false;
     private String videoFilePath;
 
-    private ImageButton recordButton,timer_img_btn;
-
+    private ImageButton recordButton, timer_img_btn;
     private TextView timerText;
-    private int countDownTime = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        //timer functionality
+
         timerText = findViewById(R.id.timer_text);
         timer_img_btn = findViewById(R.id.timer_img_btn);
 
@@ -74,14 +69,11 @@ public class MainActivity extends Activity {
         textureView.setSurfaceTextureListener(textureListener);
 
         recordButton = findViewById(R.id.start_record_img_btn);
-        recordButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (isRecording) {
-                    stopRecording();
-                } else {
-                    startRecording();
-                }
+        recordButton.setOnClickListener(v -> {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
             }
         });
     }
@@ -127,15 +119,10 @@ public class MainActivity extends Activity {
                         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                             cameraCaptureSessions = cameraCaptureSession;
                             updatePreview();
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mediaRecorder.start();
-                                    isRecording = true;
-//                                    recordButton.setText("Stop Recording");
-                                    recordButton.setImageResource(R.drawable.pause_record_icon);
-
-                                }
+                            runOnUiThread(() -> {
+                                mediaRecorder.start();
+                                isRecording = true;
+                                recordButton.setImageResource(R.drawable.pause_record_icon);
                             });
                         }
 
@@ -156,7 +143,7 @@ public class MainActivity extends Activity {
             isRecording = false;
             recordButton.setImageResource(R.drawable.start_record_icon);
             saveVideoToGallery();
-            openCamera();
+            openCamera(); // Reopen the camera to reinitialize the preview after stopping the recording
         }
     }
 
@@ -224,6 +211,7 @@ public class MainActivity extends Activity {
         @Override
         public void onDisconnected(CameraDevice camera) {
             cameraDevice.close();
+            cameraDevice = null;
         }
 
         @Override
@@ -276,22 +264,20 @@ public class MainActivity extends Activity {
         super.onPause();
         if (cameraDevice != null) {
             cameraDevice.close();
+            cameraDevice = null;
         }
         if (mediaRecorder != null) {
             mediaRecorder.release();
+            mediaRecorder = null;
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                openCamera();
-            } else {
-                Toast.makeText(this, "You can't use camera without permission", Toast.LENGTH_SHORT).show();
-                finish();
-            }
+    protected void onResume() {
+        super.onResume();
+        if (textureView.isAvailable()) {
+            openCamera();
+        } else {
+            textureView.setSurfaceTextureListener(textureListener);
         }
-    }
-}
+    }}
