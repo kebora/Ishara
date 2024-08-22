@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -27,7 +28,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
+import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
 import com.simiyudaniel.ishara2.timer.TimerFunction;
+import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -50,6 +53,9 @@ public class MainActivity extends Activity {
     private ImageButton recordButton, timer_img_btn;
     private TextView timerText;
 
+    // gesture recognition
+    private GestureRecognition gestureRecognition;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +63,9 @@ public class MainActivity extends Activity {
 
         timerText = findViewById(R.id.timer_text);
         timer_img_btn = findViewById(R.id.timer_img_btn);
+
+        // Initialize GestureRecognition
+        gestureRecognition = new GestureRecognition(this);
 
         timer_img_btn.setOnClickListener(v -> {
             timerText.setVisibility(View.VISIBLE);
@@ -71,8 +80,12 @@ public class MainActivity extends Activity {
         recordButton = findViewById(R.id.start_record_img_btn);
         recordButton.setOnClickListener(v -> {
             if (isRecording) {
+                SoundPlayer soundPlayer = new SoundPlayer(this, R.raw.alert);
+                soundPlayer.playSound();
                 stopRecording();
             } else {
+                SoundPlayer soundPlayer = new SoundPlayer(this, R.raw.alert);
+                soundPlayer.playSound();
                 startRecording();
             }
         });
@@ -95,8 +108,33 @@ public class MainActivity extends Activity {
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+            // Get the latest frame from the camera
+            Bitmap bitmap = textureView.getBitmap();
+
+            // Run gesture recognition on the current frame
+            float[] gestureProbabilities = gestureRecognition.recognizeGesture(bitmap);
+
+            // Handle the recognized gesture (Example: Toggle recording)
+            int recognizedGesture = getMaxIndex(gestureProbabilities);
+
+            switch (recognizedGesture) {
+                case 0:
+                    // Handle gesture 0 (e.g., start recording)
+                    if (!isRecording) {
+                        startRecording();
+                    }
+                    break;
+                case 1:
+                    // Handle gesture 1 (e.g., stop recording)
+                    if (isRecording) {
+                        stopRecording();
+                    }
+                    break;
+                // Add more cases based on your gestures
+            }
         }
     };
+
 
     private void startRecording() {
         if (cameraDevice == null) {
@@ -280,4 +318,21 @@ public class MainActivity extends Activity {
         } else {
             textureView.setSurfaceTextureListener(textureListener);
         }
-    }}
+    }
+
+    //get gesture with high probability
+    private int getMaxIndex(float[] probabilities) {
+        int maxIndex = 0;
+        float maxValue = probabilities[0];
+
+        for (int i = 1; i < probabilities.length; i++) {
+            if (probabilities[i] > maxValue) {
+                maxValue = probabilities[i];
+                maxIndex = i;
+            }
+        }
+
+        return maxIndex;
+    }
+
+}
