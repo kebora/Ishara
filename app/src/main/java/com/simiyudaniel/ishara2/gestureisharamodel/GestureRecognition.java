@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Bitmap;
 
 import com.simiyudaniel.ishara2.R;
-import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -18,8 +17,8 @@ import java.nio.channels.FileChannel;
 public class GestureRecognition {
 
     private Interpreter tflite;
-    private static final int INPUT_SIZE = 64; // Change this to your model's input size
-    private static final int NUM_CLASSES = 10; // Number of gesture classes
+    private static final int INPUT_SIZE = 64;
+    private static final int NUM_CLASSES = 10;
 
     public GestureRecognition(Context context) {
         try {
