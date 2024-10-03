@@ -1,299 +1,586 @@
 package com.simiyudaniel.ishara2;
 
-import org.opencv.android.CameraActivity;
-import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
-import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Mat;
-
-import android.content.pm.PackageManager;
-import android.media.MediaRecorder;
-import android.os.Bundle;
-import android.os.Environment;
-import android.util.Log;
-import android.view.Surface;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.View;
-import android.view.WindowManager;
-import android.widget.ImageButton;
-import android.widget.Toast;
-
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-
+import android.Manifest;
+import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
-import android.media.MediaScannerConnection;
+import android.content.DialogInterface;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.SurfaceTexture;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
+import android.media.MediaRecorder;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
 import android.provider.MediaStore;
-import java.io.OutputStream;
+import android.util.Log;
+import android.view.Surface;
+import android.view.TextureView;
+import android.view.View;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.ActivityCompat;
 
-public class MainActivity extends CameraActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnClickListener, SurfaceHolder.Callback, PermissionsHandler.PermissionsHandlerCallback {
+import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
+import com.simiyudaniel.ishara2.timer.TimerFunction;
+import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
-    private static final String TAG = "OCVSample::Activity";
-    private CameraBridgeViewBase mOpenCvCameraView;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class MainActivity extends Activity {
+
+    private static final String TAG = "MainActivity";
+    private static final int REQUEST_PERMISSIONS_CODE = 1001;
+
+    private TextureView textureView;
+    private CameraDevice cameraDevice;
+    private CameraCaptureSession cameraCaptureSessions;
+    private CaptureRequest.Builder captureRequestBuilder;
     private MediaRecorder mediaRecorder;
     private boolean isRecording = false;
-    private PermissionsHandler permissionsHandler;
-    private String outputFileName;
-    private ImageButton startRecordBtn;
+    private String videoFilePath;
 
-    private static final int REQUEST_PERMISSIONS = 1;
+    private ImageButton recordButton, timerImgBtn;
+    private TextView timerText, gestureTextView;
 
-    public MainActivity() {
-        Log.i(TAG, "Instantiated new " + this.getClass());
-    }
+    // Gesture recognition
+    private GestureRecognition gestureRecognition;
+
+    // ExecutorService for background tasks
+    private ExecutorService executorService;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        Log.i(TAG, "called onCreate");
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main); // Ensure this layout has all referenced UI components
 
-        if (OpenCVLoader.initLocal()) {
-            Log.i(TAG, "OpenCV loaded successfully");
+        // Initialize ExecutorService
+        executorService = Executors.newSingleThreadExecutor();
+
+        // Initialize UI components
+        textureView = findViewById(R.id.texture_view);
+        recordButton = findViewById(R.id.start_record_img_btn);
+        timerImgBtn = findViewById(R.id.timer_img_btn);
+        timerText = findViewById(R.id.timer_text);
+        gestureTextView = findViewById(R.id.gesture_text_view);
+
+        // Initialize GestureRecognition
+        gestureRecognition = new GestureRecognition(this);
+
+        // Set up TextureView listener
+        textureView.setSurfaceTextureListener(textureListener);
+
+        // Set up Record Button click listener
+        recordButton.setOnClickListener(v -> {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Set up Timer Image Button click listener
+        timerImgBtn.setOnClickListener(v -> {
+            timerText.setVisibility(TextView.VISIBLE);
+            TimerFunction timerFunction = new TimerFunction(timerText, 10, () -> {
+                if (!isRecording) {
+                    startRecording();
+                }
+            });
+            timerFunction.startCountdown();
+        });
+
+        // Check and request permissions
+        if (!hasAllPermissions()) {
+            requestNecessaryPermissions();
         } else {
-            Log.e(TAG, "OpenCV initialization failed!");
-            Toast.makeText(this, "OpenCV initialization failed!", Toast.LENGTH_LONG).show();
-            return;
+            // Permissions already granted, proceed with camera setup
+            openCamera();
         }
-
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        setContentView(R.layout.activity_main);
-
-
-
-        permissionsHandler = new PermissionsHandler(this);
-
-        if (!permissionsHandler.checkAndRequestPermissions()) {
-            return; // Permissions not granted
-        }
-        requestPermissions();
-
-        initializeCameraView();
     }
 
-    private void initializeCameraView() {
-        mOpenCvCameraView = findViewById(R.id.activity_java_surface_view);
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-        mOpenCvCameraView.setCvCameraViewListener(this);
-
-        startRecordBtn = findViewById(R.id.start_record_btn);
-        startRecordBtn.setOnClickListener(this);
-
-        SurfaceHolder holder = mOpenCvCameraView.getHolder();
-        holder.addCallback(this);
+    /**
+     * Checks if all necessary permissions are granted.
+     *
+     * @return True if all permissions are granted, false otherwise.
+     */
+    private boolean hasAllPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // For Android 10 and above, WRITE_EXTERNAL_STORAGE is deprecated
+            return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+                    ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+                    ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                    ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                    ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
     }
-private void requestPermissions() {
-    String[] permissions = {
-            android.Manifest.permission.CAMERA,
-            android.Manifest.permission.RECORD_AUDIO,
-            android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            android.Manifest.permission.READ_EXTERNAL_STORAGE
+
+    /**
+     * Requests all necessary permissions at runtime.
+     */
+    private void requestNecessaryPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ||
+                    shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) ||
+                    (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) ||
+                    (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE))) {
+
+                // Show an explanation to the user
+                new AlertDialog.Builder(this)
+                        .setTitle("Permissions Required")
+                        .setMessage("This app requires Camera and Audio permissions to function correctly.")
+                        .setPositiveButton("Grant", (dialog, which) -> {
+                            ActivityCompat.requestPermissions(MainActivity.this,
+                                    getRequiredPermissions(),
+                                    REQUEST_PERMISSIONS_CODE);
+                        })
+                        .setNegativeButton("Deny", (dialog, which) -> {
+                            Toast.makeText(MainActivity.this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
+                            finish(); // Close the app
+                        })
+                        .create()
+                        .show();
+            } else {
+                // No explanation needed; request the permissions
+                ActivityCompat.requestPermissions(this,
+                        getRequiredPermissions(),
+                        REQUEST_PERMISSIONS_CODE);
+            }
+        }
+    }
+
+    /**
+     * Returns an array of required permissions based on SDK version.
+     *
+     * @return Array of permission strings.
+     */
+    private String[] getRequiredPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return new String[]{
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO
+            };
+        } else {
+            return new String[]{
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+            };
+        }
+    }
+
+    /**
+     * Callback for the result from requesting permissions.
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_PERMISSIONS_CODE) {
+            if (grantResults.length > 0) {
+                boolean allGranted = true;
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+                        allGranted = false;
+                        break;
+                    }
+                }
+
+                if (allGranted) {
+                    // All permissions granted, proceed with camera setup
+                    openCamera();
+                } else {
+                    // Permissions denied
+                    Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
+                    finish(); // Close the app
+                }
+            } else {
+                // Permissions denied
+                Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
+                finish(); // Close the app
+            }
+        }
+    }
+
+    /**
+     * Opens the camera by accessing the CameraManager and requesting camera access.
+     */
+    private void openCamera() {
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try {
+            String cameraId = manager.getCameraIdList()[0]; // Usually the back camera
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                // Permission check is redundant here as we've already handled permissions
+                return;
+            }
+            manager.openCamera(cameraId, stateCallback, null);
+        } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Callback for camera state changes.
+     */
+    private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
+        @Override
+        public void onOpened(@NonNull CameraDevice camera) {
+            cameraDevice = camera;
+            createCameraPreview();
+            Log.d(TAG, "Camera opened.");
+        }
+
+        @Override
+        public void onDisconnected(@NonNull CameraDevice camera) {
+            cameraDevice.close();
+            cameraDevice = null;
+            Log.d(TAG, "Camera disconnected.");
+        }
+
+        @Override
+        public void onError(@NonNull CameraDevice camera, int error) {
+            cameraDevice.close();
+            cameraDevice = null;
+            Log.e(TAG, "Camera error: " + error);
+        }
     };
 
-    if (!hasPermissions(this, permissions)) {
-        ActivityCompat.requestPermissions(this, permissions, REQUEST_PERMISSIONS);
-    }
-}
-
-    private boolean hasPermissions(Context context, String... permissions) {
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
-                return false;
+    /**
+     * Creates the camera preview by setting up a CaptureRequest and starting the camera session.
+     */
+    protected void createCameraPreview() {
+        try {
+            SurfaceTexture texture = textureView.getSurfaceTexture();
+            if (texture == null) {
+                Log.e(TAG, "SurfaceTexture is null.");
+                return;
             }
-        }
-        return true;
-    }
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        permissionsHandler.handleRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_PERMISSIONS) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                initializeCameraView();
-            } else {
-                Toast.makeText(this, "Permissions denied", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
+            texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
+            Surface surface = new Surface(texture);
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            captureRequestBuilder.addTarget(surface);
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (mOpenCvCameraView != null) mOpenCvCameraView.disableView();
-        if (isRecording) stopRecord();
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (mOpenCvCameraView != null) mOpenCvCameraView.enableView();
-    }
-
-    @Override
-    protected List<? extends CameraBridgeViewBase> getCameraViewList() {
-        return Collections.singletonList(mOpenCvCameraView);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (mOpenCvCameraView != null) mOpenCvCameraView.disableView();
-        if (isRecording) stopRecord();
-    }
-
-    @Override
-    public void onCameraViewStarted(int width, int height) {
-        Toast.makeText(this, "Camera view starts...", Toast.LENGTH_LONG).show();
-    }
-
-    @Override
-    public void onCameraViewStopped() {}
-
-    @Override
-    public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        return inputFrame.rgba();
-    }
-
-    @Override
-    public void onClick(View v) {
-        if (v.getId() == R.id.start_record_btn) {
-            if (isRecording) {
-                stopRecord();
-                startRecordBtn.setImageResource(R.drawable.start_record_icon);
-            } else {
-                try {
-                    startRecord();
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
+            cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    if (cameraDevice == null) {
+                        return;
+                    }
+                    cameraCaptureSessions = cameraCaptureSession;
+                    updatePreview();
+                    Log.d(TAG, "Camera capture session configured.");
                 }
-                startRecordBtn.setImageResource(R.drawable.pause_record_icon);
-            }
+
+                @Override
+                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Camera capture session configuration failed.");
+                }
+            }, null);
+        } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException in createCameraPreview: " + e.getMessage());
         }
     }
 
-    private void startRecord() throws FileNotFoundException {
-        if (prepareMediaRecorder()) {
-            try {
-                mediaRecorder.start();
-                isRecording = true;
-                Toast.makeText(this, "Recording started...", Toast.LENGTH_SHORT).show();
-                Log.i(TAG, "Recording started...");
-            } catch (IllegalStateException e) {
-                Log.e(TAG, "IllegalStateException starting MediaRecorder: " + e.getMessage());
-                Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show();
-                releaseMediaRecorder();
-            }
-        } else {
-            Toast.makeText(this, "Failed to prepare MediaRecorder", Toast.LENGTH_SHORT).show();
-            Log.e(TAG, "Failed to prepare MediaRecorder");
+    /**
+     * Updates the camera preview by setting the repeating request.
+     */
+    private void updatePreview() {
+        if (cameraDevice == null) {
+            Log.e(TAG, "CameraDevice is null in updatePreview.");
+            return;
+        }
+        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
+        try {
+            cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+            Log.d(TAG, "Camera preview updated.");
+        } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException in updatePreview: " + e.getMessage());
         }
     }
 
-    private void stopRecord() {
+    /**
+     * Starts video recording by setting up MediaRecorder and configuring the camera session.
+     */
+    private void startRecording() {
+        if (cameraDevice == null) {
+            Log.e(TAG, "Cannot start recording: CameraDevice is null.");
+            return;
+        }
+        try {
+            setUpMediaRecorder();
+            SurfaceTexture texture = textureView.getSurfaceTexture();
+            if (texture == null) {
+                Log.e(TAG, "SurfaceTexture is null in startRecording.");
+                return;
+            }
+            texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
+            Surface previewSurface = new Surface(texture);
+            Surface recordSurface = mediaRecorder.getSurface();
+
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+            captureRequestBuilder.addTarget(previewSurface);
+            captureRequestBuilder.addTarget(recordSurface);
+
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    cameraCaptureSessions = cameraCaptureSession;
+                    updatePreview();
+                    runOnUiThread(() -> {
+                        mediaRecorder.start();
+                        isRecording = true;
+                        recordButton.setImageResource(R.drawable.pause_record_icon); // Ensure this drawable exists
+                        Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "Recording started.");
+                    });
+                }
+
+                @Override
+                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Camera capture session configuration failed during recording.");
+                }
+            }, null);
+        } catch (CameraAccessException | IOException e) {
+            Log.e(TAG, "Exception in startRecording: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Stops video recording and saves the video to the gallery.
+     */
+    private void stopRecording() {
+        if (!isRecording) {
+            Log.e(TAG, "Cannot stop recording: Not currently recording.");
+            return;
+        }
         try {
             mediaRecorder.stop();
-            Toast.makeText(this, "Recording stopped...", Toast.LENGTH_SHORT).show();
-            Log.i(TAG, "Recording stopped...");
-        } catch (RuntimeException e) {
-            Log.e(TAG, "RuntimeException stopping MediaRecorder: " + e.getMessage());
-            // Cleanup partially written file
-            File file = new File(outputFileName);
-            if (file.exists() && file.delete()) {
-                Log.i(TAG, "Deleted incomplete file: " + outputFileName);
-            }
-        } finally {
-            releaseMediaRecorder();
+            mediaRecorder.reset();
             isRecording = false;
+            recordButton.setImageResource(R.drawable.start_record_icon); // Ensure this drawable exists
+            Toast.makeText(this, "Recording Stopped", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Recording stopped.");
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Video.Media.IS_PENDING, 0);
+                getContentResolver().update(Uri.parse(videoFilePath), values, null, null);
+            }
+
+            openCamera(); // Reopen the camera to restart the preview
+
+        } catch (RuntimeException e) {
+            Log.e(TAG, "RuntimeException while stopping MediaRecorder: " + e.getMessage());
+            Toast.makeText(this, "Failed to stop recording properly.", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private boolean prepareMediaRecorder() throws FileNotFoundException {
-        mOpenCvCameraView.disableView();
-
+    /**
+     * Sets up MediaRecorder with the desired configurations.
+     */
+    private void setUpMediaRecorder() throws IOException {
         mediaRecorder = new MediaRecorder();
-
-        mOpenCvCameraView.enableView();
-
-        // Configure MediaRecorder
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mediaRecorder.setVideoSize(640, 480);
-        mediaRecorder.setVideoFrameRate(30);
-        mediaRecorder.setVideoEncodingBitRate(10000000);
 
-        // Create file using MediaStore
+        // Generate a unique file name based on timestamp
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String fileName = "video_" + timeStamp + ".mp4";
+        String fileName = "ISHARA_" + timeStamp + ".mp4";
 
         ContentValues values = new ContentValues();
-        values.put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/Ishara");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/Ishara");
+            values.put(MediaStore.Video.Media.IS_PENDING, 1);
+        } else {
+            values.put(MediaStore.Video.Media.DATA, getExternalFilesDir(null) + "/ISHARA_" + timeStamp + ".mp4");
+        }
+
         values.put(MediaStore.Video.Media.TITLE, fileName);
         values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
         values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
         values.put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis() / 1000);
         values.put(MediaStore.Video.Media.DATE_TAKEN, System.currentTimeMillis());
 
-        Uri collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+        Uri collection;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+        } else {
+            collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        }
+
         Uri videoUri = getContentResolver().insert(collection, values);
-
-        if (videoUri == null) {
-            Log.e(TAG, "Failed to create new MediaStore record.");
-            return false;
+        if (videoUri != null) {
+            videoFilePath = videoUri.toString();
+            mediaRecorder.setOutputFile(getContentResolver().openFileDescriptor(videoUri, "w").getFileDescriptor());
+        } else {
+            throw new IOException("Failed to create MediaStore entry.");
         }
 
-        outputFileName = videoUri.toString();
-        Log.i(TAG, "Output file: " + outputFileName);
-
-        mediaRecorder.setOutputFile(getContentResolver().openFileDescriptor(videoUri, "w").getFileDescriptor());
-        mediaRecorder.setPreviewDisplay(mOpenCvCameraView.getHolder().getSurface());
-
-        try {
-            mediaRecorder.prepare();
-        } catch (IOException e) {
-            Log.e(TAG, "IOException preparing MediaRecorder: " + e.getMessage());
-            mediaRecorder.release();
-            mediaRecorder = null;
-            return false;
-        }
-
-        return true;
+        // Set video configurations
+        mediaRecorder.setVideoEncodingBitRate(10000000);
+        mediaRecorder.setVideoFrameRate(30);
+        mediaRecorder.setVideoSize(1280, 720); // Adjust based on device capabilities
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mediaRecorder.prepare();
+        Log.d(TAG, "MediaRecorder configured.");
     }
 
 
-    private void releaseMediaRecorder() {
+    /**
+     * Lifecycle method to release resources when the activity is paused.
+     */
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (isRecording) {
+            stopRecording();
+        }
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+            Log.d(TAG, "CameraDevice closed in onPause.");
+        }
         if (mediaRecorder != null) {
-            mediaRecorder.reset();
             mediaRecorder.release();
             mediaRecorder = null;
+            Log.d(TAG, "MediaRecorder released in onPause.");
+        }
+        if (gestureRecognition != null) {
+            gestureRecognition.close();
+            Log.d(TAG, "GestureRecognition closed in onPause.");
+        }
+        if (executorService != null) {
+            executorService.shutdown();
+            Log.d(TAG, "ExecutorService shut down in onPause.");
         }
     }
 
+    /**
+     * Lifecycle method to re-initialize resources when the activity resumes.
+     */
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {}
+    protected void onResume() {
+        super.onResume();
+        if (textureView.isAvailable() && hasAllPermissions()) {
+            openCamera();
+        } else {
+            textureView.setSurfaceTextureListener(textureListener);
+        }
+    }
 
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
+    /**
+     * Gesture TextureView listener.
+     * Handles the SurfaceTexture updates for gesture recognition.
+     */
+    private final TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
+        @Override
+        public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
+            // Already handled in onCreate after permissions
+            if (hasAllPermissions()) {
+                openCamera();
+            } else {
+                requestNecessaryPermissions();
+            }
+        }
 
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {}
+        @Override
+        public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
+            // Handle size changes if necessary
+        }
 
-    @Override
-    public void onPermissionsGranted() {
-        initializeCameraView();
+        @Override
+        public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
+            return false;
+        }
+        private long lastRecognitionTime = 0;
+        private static final long RECOGNITION_INTERVAL_MS = 500;
+
+        @Override
+        public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+            // Get the latest frame from the camera as a Bitmap
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastRecognitionTime < RECOGNITION_INTERVAL_MS) {
+                return;
+            }
+            lastRecognitionTime = currentTime;
+//            Bitmap bitmap = textureView.getBitmap();
+            Bitmap bitmap = textureView.getBitmap(320, 240);
+
+
+            if (bitmap != null) {
+                // Run gesture recognition on a background thread
+                executorService.execute(() -> {
+                    String recognizedGesture = gestureRecognition.recognizeGesture(bitmap);
+
+                    // Update UI based on recognized gesture
+                    runOnUiThread(() -> {
+                        gestureTextView.setText("Gesture: " + recognizedGesture);
+                        handleGesture(recognizedGesture);
+                    });
+                });
+            }
+        }
+    };
+
+    /**
+     * Handles actions based on the recognized gesture.
+     *
+     * @param gesture The name of the recognized gesture.
+     */
+    private void handleGesture(String gesture) {
+        if (gesture.contains("palm")) {
+            Log.d("GestureAction", "Palm detected");
+            startRecording();
+        }
+        else if (gesture.contains("like"))
+        {
+            Log.d("GestureAction", "Like detected");
+        }
+        else if (gesture.contains("fist"))
+        {
+            Log.d("GestureAction", "Fist detected");
+        }
+        else if (gesture.contains("peace"))
+        {
+            Log.d("GestureAction", "Peace detected");
+        }
+        else if (gesture.contains("ok"))
+        {
+            Log.d("GestureAction", "OK detected");
+        }
+        else if (gesture.contains("stop"))
+        {
+            Log.d("GestureAction", "Stop detected");
+        }
+        else if (gesture.contains("one"))
+        {
+            Log.d("GestureAction", "One detected");
+        }
+
+        else {
+            Log.d("GestureAction", "Unknown gesture: " + gesture);
+        }
     }
 }

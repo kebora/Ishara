@@ -15,6 +15,11 @@ import android.widget.Toast;
 import java.util.Collections;
 import java.util.List;
 
+/***
+ * The capture of camera frames using opencv
+ * I followed up on the documentation here:
+ *
+ */
 
 public class CameraTrialRec extends CameraActivity implements CvCameraViewListener2 {
     private static final String TAG = "OCVSample::Activity";
