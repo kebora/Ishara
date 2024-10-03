@@ -550,43 +550,37 @@ public class MainActivity extends Activity {
      * @param gesture The name of the recognized gesture.
      */
     private void handleGesture(String gesture) {
-        if (gesture == null) return;
+        if (gesture.contains("palm")) {
+            Log.d("GestureAction", "Palm detected");
+            startRecording();
+        }
+        else if (gesture.contains("like"))
+        {
+            Log.d("GestureAction", "Like detected");
+        }
+        else if (gesture.contains("fist"))
+        {
+            Log.d("GestureAction", "Fist detected");
+        }
+        else if (gesture.contains("peace"))
+        {
+            Log.d("GestureAction", "Peace detected");
+        }
+        else if (gesture.contains("ok"))
+        {
+            Log.d("GestureAction", "OK detected");
+        }
+        else if (gesture.contains("stop"))
+        {
+            Log.d("GestureAction", "Stop detected");
+        }
+        else if (gesture.contains("one"))
+        {
+            Log.d("GestureAction", "One detected");
+        }
 
-        switch (gesture.toLowerCase()) {
-            case "palm":
-                if (!isRecording) {
-                    startRecording();
-                }
-                break;
-            case "ok":
-                if (isRecording) {
-                    stopRecording();
-                }
-            case "fist":
-                if (isRecording) {
-                    stopRecording();
-                }
-            case "peace":
-                if (isRecording) {
-                    stopRecording();
-                }
-            case "stop":
-                if (isRecording) {
-                    stopRecording();
-                }
-            case "like":
-                if (isRecording) {
-                    stopRecording();
-                }
-            case "one":
-                if (isRecording) {
-                    stopRecording();
-                }
-                break;
-            // Add more cases based on your gesture names
-            default:
-                // No action for unrecognized gestures
-                break;
+        else {
+            Log.d("GestureAction", "Unknown gesture: " + gesture);
         }
     }
 }
