@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
@@ -23,6 +24,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,7 +32,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 
+import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
 import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
+import com.simiyudaniel.ishara2.permissions.PermissionsChecker;
 import com.simiyudaniel.ishara2.timer.TimerFunction;
 import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
@@ -40,6 +44,11 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+// text to speech: speech synthesis
+import android.speech.tts.TextToSpeech;
+import android.widget.Toolbar;
+
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -63,10 +72,16 @@ public class MainActivity extends Activity {
     // ExecutorService for background tasks
     private ExecutorService executorService;
 
+    //PermissionsChecker
+    PermissionsChecker permissionsChecker = new PermissionsChecker();
+
+    //Feedback on gesture detected
+    GestureFeedback gestureFeedback = new GestureFeedback();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // Ensure this layout has all referenced UI components
+        setContentView(R.layout.activity_main);
 
         // Initialize ExecutorService
         executorService = Executors.newSingleThreadExecutor();
@@ -105,29 +120,20 @@ public class MainActivity extends Activity {
         });
 
         // Check and request permissions
-        if (!hasAllPermissions()) {
+        if (!permissionsChecker.hasAllPermissions(this)) {
             requestNecessaryPermissions();
         } else {
-            // Permissions already granted, proceed with camera setup
+            // Proceed with camera setup
             openCamera();
         }
     }
 
-    /**
-     * Checks if all necessary permissions are granted.
-     *
-     * @return True if all permissions are granted, false otherwise.
-     */
-    private boolean hasAllPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // For Android 10 and above, WRITE_EXTERNAL_STORAGE is deprecated
-            return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Shutdown executor safely
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdown();
         }
     }
 
@@ -141,7 +147,7 @@ public class MainActivity extends Activity {
                     (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) ||
                     (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE))) {
 
-                // Show an explanation to the user
+                // Prompt for permission
                 new AlertDialog.Builder(this)
                         .setTitle("Permissions Required")
                         .setMessage("This app requires Camera and Audio permissions to function correctly.")
@@ -152,12 +158,12 @@ public class MainActivity extends Activity {
                         })
                         .setNegativeButton("Deny", (dialog, which) -> {
                             Toast.makeText(MainActivity.this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                            finish(); // Close the app
+                            finish();
                         })
                         .create()
                         .show();
             } else {
-                // No explanation needed; request the permissions
+                // Request the permissions
                 ActivityCompat.requestPermissions(this,
                         getRequiredPermissions(),
                         REQUEST_PERMISSIONS_CODE);
@@ -205,12 +211,12 @@ public class MainActivity extends Activity {
                 }
 
                 if (allGranted) {
-                    // All permissions granted, proceed with camera setup
+                    // Proceed with camera setup
                     openCamera();
                 } else {
                     // Permissions denied
                     Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                    finish(); // Close the app
+                    finish(); // Close app
                 }
             } else {
                 // Permissions denied
@@ -226,9 +232,10 @@ public class MainActivity extends Activity {
     private void openCamera() {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
-            String cameraId = manager.getCameraIdList()[0]; // Usually the back camera
+            //todo: Enable users to switch camera in real time
+            // 0 for the back camera: 1 for the selfie camera
+            String cameraId = manager.getCameraIdList()[1];
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                // Permission check is redundant here as we've already handled permissions
                 return;
             }
             manager.openCamera(cameraId, stateCallback, null);
@@ -377,7 +384,7 @@ public class MainActivity extends Activity {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
-            recordButton.setImageResource(R.drawable.start_record_icon); // Ensure this drawable exists
+            recordButton.setImageResource(R.drawable.start_record_icon);
             Toast.makeText(this, "Recording Stopped", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Recording stopped.");
 
@@ -386,8 +393,8 @@ public class MainActivity extends Activity {
                 values.put(MediaStore.Video.Media.IS_PENDING, 0);
                 getContentResolver().update(Uri.parse(videoFilePath), values, null, null);
             }
-
-            openCamera(); // Reopen the camera to restart the preview
+            // Reopen the camera to restart the preview
+            openCamera();
 
         } catch (RuntimeException e) {
             Log.e(TAG, "RuntimeException while stopping MediaRecorder: " + e.getMessage());
@@ -440,7 +447,7 @@ public class MainActivity extends Activity {
         // Set video configurations
         mediaRecorder.setVideoEncodingBitRate(10000000);
         mediaRecorder.setVideoFrameRate(30);
-        mediaRecorder.setVideoSize(1280, 720); // Adjust based on device capabilities
+        mediaRecorder.setVideoSize(1280, 720);
         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         mediaRecorder.prepare();
@@ -483,7 +490,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (textureView.isAvailable() && hasAllPermissions()) {
+        if (textureView.isAvailable() && !permissionsChecker.hasAllPermissions(this)) {
             openCamera();
         } else {
             textureView.setSurfaceTextureListener(textureListener);
@@ -498,7 +505,7 @@ public class MainActivity extends Activity {
         @Override
         public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
             // Already handled in onCreate after permissions
-            if (hasAllPermissions()) {
+            if (permissionsChecker.hasAllPermissions(MainActivity.this)) {
                 openCamera();
             } else {
                 requestNecessaryPermissions();
@@ -507,7 +514,7 @@ public class MainActivity extends Activity {
 
         @Override
         public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
-            // Handle size changes if necessary
+            // Handle size changes
         }
 
         @Override
@@ -528,7 +535,6 @@ public class MainActivity extends Activity {
 //            Bitmap bitmap = textureView.getBitmap();
             Bitmap bitmap = textureView.getBitmap(320, 240);
 
-
             if (bitmap != null) {
                 // Run gesture recognition on a background thread
                 executorService.execute(() -> {
@@ -537,50 +543,10 @@ public class MainActivity extends Activity {
                     // Update UI based on recognized gesture
                     runOnUiThread(() -> {
                         gestureTextView.setText("Gesture: " + recognizedGesture);
-                        handleGesture(recognizedGesture);
+                        gestureFeedback.handleGesture(recognizedGesture);
                     });
                 });
             }
         }
     };
-
-    /**
-     * Handles actions based on the recognized gesture.
-     *
-     * @param gesture The name of the recognized gesture.
-     */
-    private void handleGesture(String gesture) {
-        if (gesture.contains("palm")) {
-            Log.d("GestureAction", "Palm detected");
-            startRecording();
-        }
-        else if (gesture.contains("like"))
-        {
-            Log.d("GestureAction", "Like detected");
-        }
-        else if (gesture.contains("fist"))
-        {
-            Log.d("GestureAction", "Fist detected");
-        }
-        else if (gesture.contains("peace"))
-        {
-            Log.d("GestureAction", "Peace detected");
-        }
-        else if (gesture.contains("ok"))
-        {
-            Log.d("GestureAction", "OK detected");
-        }
-        else if (gesture.contains("stop"))
-        {
-            Log.d("GestureAction", "Stop detected");
-        }
-        else if (gesture.contains("one"))
-        {
-            Log.d("GestureAction", "One detected");
-        }
-
-        else {
-            Log.d("GestureAction", "Unknown gesture: " + gesture);
-        }
-    }
 }
