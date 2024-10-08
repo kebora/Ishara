@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
     private CameraCaptureSession cameraCaptureSessions;
     private CaptureRequest.Builder captureRequestBuilder;
     private MediaRecorder mediaRecorder;
-    private boolean isRecording = false;
+    private boolean isRecording,isPaused = false;
     private String videoFilePath;
 
     private ImageButton recordButton, timerImgBtn;
@@ -369,6 +369,28 @@ public class MainActivity extends Activity {
             }, null);
         } catch (CameraAccessException | IOException e) {
             Log.e(TAG, "Exception in startRecording: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Pause Recording
+     */
+    public void pauseRecording() {
+        if (isRecording && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isPaused) {
+            mediaRecorder.pause();
+            isPaused = true;
+            Log.d(TAG, "Recording paused.");
+        }
+    }
+
+    /**
+     * Resume Recording
+     */
+    public void resumeRecording() {
+        if (isRecording && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isPaused) {
+            mediaRecorder.resume();
+            isPaused = false;
+            Log.d(TAG, "Recording resumed.");
         }
     }
 
