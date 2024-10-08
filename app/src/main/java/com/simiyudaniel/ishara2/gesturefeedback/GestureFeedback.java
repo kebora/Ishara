@@ -1,17 +1,24 @@
 package com.simiyudaniel.ishara2.gesturefeedback;
 
+import android.content.Context;
 import android.util.Log;
 
 import com.simiyudaniel.ishara2.MainActivity;
 
 
 public class GestureFeedback {
-
+    private Context context;
+    private MainActivity mainActivity;
+    //
+    public GestureFeedback(Context context,MainActivity mainActivity) {
+        this.context = context;
+        this.mainActivity = mainActivity;
+    }
+    //
     public void handleGesture(String gesture) {
-        MainActivity mainActivity = new MainActivity();
         if (gesture.contains("palm"))
         {
-//            mainActivity.pauseRecording();
+            mainActivity.pauseRecording();
             Log.d("GestureFeedback", "Palm detected");
             //
         } else if (gesture.contains("like"))

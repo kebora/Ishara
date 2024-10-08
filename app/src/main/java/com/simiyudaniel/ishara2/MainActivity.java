@@ -11,6 +11,7 @@ import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
@@ -18,11 +19,13 @@ import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.widget.Chronometer;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -76,7 +79,11 @@ public class MainActivity extends Activity {
     PermissionsChecker permissionsChecker = new PermissionsChecker();
 
     //Feedback on gesture detected
-    GestureFeedback gestureFeedback = new GestureFeedback();
+    GestureFeedback gestureFeedback;
+
+    //
+    private Chronometer recordingTimer;
+    private long pauseOffset = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,9 +102,14 @@ public class MainActivity extends Activity {
 
         // Initialize GestureRecognition
         gestureRecognition = new GestureRecognition(this);
+        //
+        gestureFeedback = new GestureFeedback(this,this);
 
         // Set up TextureView listener
         textureView.setSurfaceTextureListener(textureListener);
+
+        // recording timer
+        recordingTimer = findViewById(R.id.recording_timer);
 
         // Set up Record Button click listener
         recordButton.setOnClickListener(v -> {
@@ -353,11 +365,22 @@ public class MainActivity extends Activity {
                     cameraCaptureSessions = cameraCaptureSession;
                     updatePreview();
                     runOnUiThread(() -> {
-                        mediaRecorder.start();
-                        isRecording = true;
-                        recordButton.setImageResource(R.drawable.pause_record_icon); // Ensure this drawable exists
-                        Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, "Recording started.");
+                        try {
+                            mediaRecorder.start();
+                            isRecording = true;
+
+                            // Start and display the recording timer
+                            recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+                            recordingTimer.start();
+                            recordingTimer.setVisibility(View.VISIBLE);
+
+                            // Update button and notify user
+                            recordButton.setImageResource(R.drawable.pause_record_icon);
+                            Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "Recording started.");
+                        } catch (IllegalStateException e) {
+                            Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
+                        }
                     });
                 }
 
@@ -372,13 +395,19 @@ public class MainActivity extends Activity {
         }
     }
 
+
     /**
      * Pause Recording
      */
     public void pauseRecording() {
-        if (isRecording && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isPaused) {
+        if (isRecording && !isPaused) {
             mediaRecorder.pause();
             isPaused = true;
+            isRecording = false;
+
+            // Pause the recording timer and save the offset
+            recordingTimer.stop();
+            pauseOffset = SystemClock.elapsedRealtime() - recordingTimer.getBase();
             Log.d(TAG, "Recording paused.");
         }
     }
@@ -387,9 +416,14 @@ public class MainActivity extends Activity {
      * Resume Recording
      */
     public void resumeRecording() {
-        if (isRecording && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isPaused) {
+        if (isRecording && isPaused) {
             mediaRecorder.resume();
             isPaused = false;
+            isRecording = true;
+
+            // Resume the timer from where it left off
+            recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+            recordingTimer.start();
             Log.d(TAG, "Recording resumed.");
         }
     }
@@ -406,6 +440,10 @@ public class MainActivity extends Activity {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
+            // Stop and reset the timer
+            recordingTimer.stop();
+            recordingTimer.setVisibility(View.GONE);
+            pauseOffset = 0; // Reset the pause offset
             recordButton.setImageResource(R.drawable.start_record_icon);
             Toast.makeText(this, "Recording Stopped", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Recording stopped.");
@@ -427,7 +465,7 @@ public class MainActivity extends Activity {
     /**
      * Sets up MediaRecorder with the desired configurations.
      */
-    private void setUpMediaRecorder() throws IOException {
+    private void setUpMediaRecorder() throws IOException, CameraAccessException {
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
@@ -469,11 +507,41 @@ public class MainActivity extends Activity {
         // Set video configurations
         mediaRecorder.setVideoEncodingBitRate(10000000);
         mediaRecorder.setVideoFrameRate(30);
+//        mediaRecorder.setVideoSize(1920, 1080);
         mediaRecorder.setVideoSize(1280, 720);
         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        // Set orientation hint based on device rotation
+        // Calculate orientation hint based on camera sensor orientation and device rotation
+        int rotation = getWindowManager().getDefaultDisplay().getRotation();
+        int sensorOrientation = getCameraSensorOrientation(); // Get sensor orientation
+        int orientationHint = (sensorOrientation + getDeviceRotationDegrees(rotation-90+360)) % 360;
+
+        mediaRecorder.setOrientationHint(orientationHint);
         mediaRecorder.prepare();
         Log.d(TAG, "MediaRecorder configured.");
+    }
+    // Helper function to get camera sensor orientation
+    private int getCameraSensorOrientation() throws CameraAccessException {
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
+        return characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+    }
+
+    // Helper function to map Surface rotation to degrees
+    private int getDeviceRotationDegrees(int rotation) {
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                return 90;
+            case Surface.ROTATION_90:
+                return 0;
+            case Surface.ROTATION_180:
+                return 270;
+            case Surface.ROTATION_270:
+                return 180;
+            default:
+                return 0;
+        }
     }
 
 
