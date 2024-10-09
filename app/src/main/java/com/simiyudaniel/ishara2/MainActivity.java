@@ -81,6 +81,10 @@ public class MainActivity extends Activity {
     private Chronometer recordingTimer;
     private long pauseOffset = 0;
 
+    // for camera flipping
+    private boolean isUsingFrontCamera = false;
+    ImageButton flipCameraBtn;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,6 +99,20 @@ public class MainActivity extends Activity {
         timerImgBtn = findViewById(R.id.timer_img_btn);
         timerText = findViewById(R.id.timer_text);
         gestureTextView = findViewById(R.id.gesture_text_view);
+
+        //flip camera button
+        flipCameraBtn = findViewById(R.id.switch_camera_img_btn);
+        flipCameraBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isUsingFrontCamera = !isUsingFrontCamera;
+                if (cameraDevice != null) {
+                    cameraDevice.close();
+                    cameraDevice = null;
+                }
+                openCamera(isUsingFrontCamera);
+            }
+        });
 
         // Initialize GestureRecognition
         gestureRecognition = new GestureRecognition(this);
@@ -132,7 +150,7 @@ public class MainActivity extends Activity {
             requestNecessaryPermissions();
         } else {
             // Proceed with camera setup
-            openCamera();
+            openCamera(isUsingFrontCamera);
         }
     }
 
@@ -220,7 +238,7 @@ public class MainActivity extends Activity {
 
                 if (allGranted) {
                     // Proceed with camera setup
-                    openCamera();
+                    openCamera(isUsingFrontCamera);
                 } else {
                     // Permissions denied
                     Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
@@ -237,12 +255,30 @@ public class MainActivity extends Activity {
     /**
      * Opens the camera by accessing the CameraManager and requesting camera access.
      */
-    private void openCamera() {
+//    private void openCamera() {
+//        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+//        try {
+//            //todo: Enable users to switch camera in real time
+//            // 0 for the back camera: 1 for the selfie camera
+//            String cameraId = manager.getCameraIdList()[1];
+//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+//                return;
+//            }
+//            manager.openCamera(cameraId, stateCallback, null);
+//        } catch (CameraAccessException e) {
+//            Log.e(TAG, "CameraAccessException: " + e.getMessage());
+//        }
+//    }
+    private void openCamera(boolean useFrontCamera) {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
-            //todo: Enable users to switch camera in real time
-            // 0 for the back camera: 1 for the selfie camera
-            String cameraId = manager.getCameraIdList()[1];
+            String cameraId;
+            if (useFrontCamera) {
+                cameraId = manager.getCameraIdList()[1]; // Front camera
+            } else {
+                cameraId = manager.getCameraIdList()[0]; // Back camera
+            }
+
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
@@ -452,7 +488,7 @@ public class MainActivity extends Activity {
                 getContentResolver().update(Uri.parse(videoFilePath), values, null, null);
             }
             // Reopen the camera to restart the preview
-            openCamera();
+            openCamera(isUsingFrontCamera);
 
         } catch (RuntimeException e) {
             Log.e(TAG, "RuntimeException while stopping MediaRecorder: " + e.getMessage());
@@ -610,7 +646,7 @@ public class MainActivity extends Activity {
         if (permissionsChecker.hasAllPermissions(this)) {
             // If the texture is available, set up the camera and start preview
             if (textureView.isAvailable()) {
-                openCamera();
+                openCamera(isUsingFrontCamera);
                 if (shouldResumeRecording) {
                     startRecording(); // Restart recording if it was interrupted by the pause
                     shouldResumeRecording = false;
@@ -666,7 +702,7 @@ public class MainActivity extends Activity {
         public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
             // Already handled in onCreate after permissions
             if (permissionsChecker.hasAllPermissions(MainActivity.this)) {
-                openCamera();
+                openCamera(isUsingFrontCamera);
             } else {
                 requestNecessaryPermissions();
             }
