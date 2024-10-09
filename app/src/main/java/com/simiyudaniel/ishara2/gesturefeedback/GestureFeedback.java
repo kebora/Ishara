@@ -24,6 +24,10 @@ public class GestureFeedback {
         } else if (gesture.contains("like"))
         {
 //            mainActivity.resumeRecording();
+            /**
+             * Toggle interval (in seconds)
+             */
+            mainActivity.triggerPeakMode(10);
             Log.d("GestureFeedback", "Like detected");
             //
         } else if (gesture.contains("fist"))

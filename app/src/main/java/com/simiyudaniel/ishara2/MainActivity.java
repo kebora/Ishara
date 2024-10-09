@@ -8,6 +8,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -19,6 +20,8 @@ import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -26,6 +29,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Chronometer;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -102,16 +106,13 @@ public class MainActivity extends Activity {
 
         //flip camera button
         flipCameraBtn = findViewById(R.id.switch_camera_img_btn);
-        flipCameraBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isUsingFrontCamera = !isUsingFrontCamera;
-                if (cameraDevice != null) {
-                    cameraDevice.close();
-                    cameraDevice = null;
-                }
-                openCamera(isUsingFrontCamera);
+        flipCameraBtn.setOnClickListener(v -> {
+            isUsingFrontCamera = !isUsingFrontCamera;
+            if (cameraDevice != null) {
+                cameraDevice.close();
+                cameraDevice = null;
             }
+            openCamera(isUsingFrontCamera);
         });
 
         // Initialize GestureRecognition
@@ -240,6 +241,7 @@ public class MainActivity extends Activity {
                     // Proceed with camera setup
                     openCamera(isUsingFrontCamera);
                 } else {
+                    // todo: Don't exit app::Make it more informative.
                     // Permissions denied
                     Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
                     finish(); // Close app
@@ -255,30 +257,12 @@ public class MainActivity extends Activity {
     /**
      * Opens the camera by accessing the CameraManager and requesting camera access.
      */
-//    private void openCamera() {
-//        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-//        try {
-//            //todo: Enable users to switch camera in real time
-//            // 0 for the back camera: 1 for the selfie camera
-//            String cameraId = manager.getCameraIdList()[1];
-//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-//                return;
-//            }
-//            manager.openCamera(cameraId, stateCallback, null);
-//        } catch (CameraAccessException e) {
-//            Log.e(TAG, "CameraAccessException: " + e.getMessage());
-//        }
-//    }
+
     private void openCamera(boolean useFrontCamera) {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
-            String cameraId;
-            if (useFrontCamera) {
-                cameraId = manager.getCameraIdList()[1]; // Front camera
-            } else {
-                cameraId = manager.getCameraIdList()[0]; // Back camera
-            }
-
+            // 0 for the back camera: 1 for the front camera
+            String cameraId = useFrontCamera ? manager.getCameraIdList()[1] : manager.getCameraIdList()[0];
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
@@ -287,6 +271,7 @@ public class MainActivity extends Activity {
             Log.e(TAG, "CameraAccessException: " + e.getMessage());
         }
     }
+
 
     /**
      * Callback for camera state changes.
@@ -350,6 +335,83 @@ public class MainActivity extends Activity {
             Log.e(TAG, "CameraAccessException in createCameraPreview: " + e.getMessage());
         }
     }
+
+    /**
+     * Peak Mode
+     *  Temporarily switch views for a set number of seconds
+     */
+
+    private Handler handler = new Handler();
+    private Runnable toggleCameraRunnable;
+    private boolean isPeakModeActive = false;
+    // 1 second toggle interval
+    private int toggleInterval = 1000;
+
+    public void triggerPeakMode(int seconds) {
+        if (!isRecording) {
+            if (isPeakModeActive) {
+                return;
+            }
+
+            isPeakModeActive = true;
+            int totalTimeInMillis = seconds * 1000;
+            final int numberOfToggles = totalTimeInMillis / toggleInterval;
+            final boolean initialCameraState = isUsingFrontCamera;
+
+            toggleCameraRunnable = new Runnable() {
+                int toggleCount = 0;
+
+                @Override
+                public void run() {
+                    // Toggle camera
+                    isUsingFrontCamera = !isUsingFrontCamera;
+                    if (cameraDevice != null) {
+                        cameraDevice.close();
+                        cameraDevice = null;
+                    }
+                    // Open the new camera
+                    openCamera(isUsingFrontCamera);
+
+                    toggleCount++;
+                    if (toggleCount < numberOfToggles) {
+                        // Schedule the next toggle
+                        handler.postDelayed(this, toggleInterval);
+                    } else {
+                        // Stop peak mode after toggling is complete
+                        isPeakModeActive = false;
+                        isUsingFrontCamera = initialCameraState;
+                        if (cameraDevice != null) {
+                            cameraDevice.close();
+                            cameraDevice = null;
+                        }
+                        // go back to original camera
+                        openCamera(isUsingFrontCamera);
+                    }
+                }
+            };
+
+            // Start the camera toggling
+            handler.post(toggleCameraRunnable);
+        }
+    }
+
+    /**
+     * Opens the camera for preview without affecting MediaRecorder session.
+     */
+    private void openPreviewOnly(String cameraId) {
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            manager.openCamera(cameraId, stateCallback, null);
+        } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException: " + e.getMessage());
+        }
+    }
+
+
+
 
     /**
      * Updates the camera preview by setting the repeating request.
