@@ -33,6 +33,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
+import android.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
 import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
@@ -47,11 +48,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-// text to speech: speech synthesis
-import android.speech.tts.TextToSpeech;
-import android.widget.Toolbar;
-
-import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -339,7 +335,7 @@ public class MainActivity extends Activity {
     /**
      * Starts video recording by setting up MediaRecorder and configuring the camera session.
      */
-    private void startRecording() {
+    public void startRecording() {
         if (cameraDevice == null) {
             Log.e(TAG, "Cannot start recording: CameraDevice is null.");
             return;
@@ -400,7 +396,7 @@ public class MainActivity extends Activity {
      * Pause Recording
      */
     public void pauseRecording() {
-        if (isRecording && !isPaused) {
+        if (isRecording) {
             mediaRecorder.pause();
             isPaused = true;
             isRecording = false;
@@ -408,6 +404,7 @@ public class MainActivity extends Activity {
             // Pause the recording timer and save the offset
             recordingTimer.stop();
             pauseOffset = SystemClock.elapsedRealtime() - recordingTimer.getBase();
+            recordButton.setImageResource(R.drawable.stop_record_icon);
             Log.d(TAG, "Recording paused.");
         }
     }
@@ -424,6 +421,7 @@ public class MainActivity extends Activity {
             // Resume the timer from where it left off
             recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
             recordingTimer.start();
+            recordButton.setImageResource(R.drawable.pause_record_icon);
             Log.d(TAG, "Recording resumed.");
         }
     }
@@ -431,7 +429,7 @@ public class MainActivity extends Activity {
     /**
      * Stops video recording and saves the video to the gallery.
      */
-    private void stopRecording() {
+    public void stopRecording() {
         if (!isRecording) {
             Log.e(TAG, "Cannot stop recording: Not currently recording.");
             return;
@@ -548,45 +546,117 @@ public class MainActivity extends Activity {
     /**
      * Lifecycle method to release resources when the activity is paused.
      */
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//        if (isRecording) {
+//            stopRecording();
+//        }
+//        if (cameraDevice != null) {
+//            cameraDevice.close();
+//            cameraDevice = null;
+//            Log.d(TAG, "CameraDevice closed in onPause.");
+//        }
+//        if (mediaRecorder != null) {
+//            mediaRecorder.release();
+//            mediaRecorder = null;
+//            Log.d(TAG, "MediaRecorder released in onPause.");
+//        }
+//        if (gestureRecognition != null) {
+//            gestureRecognition.close();
+//            Log.d(TAG, "GestureRecognition closed in onPause.");
+//        }
+//        if (executorService != null) {
+//            executorService.shutdown();
+//            Log.d(TAG, "ExecutorService shut down in onPause.");
+//        }
+//    }
+//
+//    /**
+//     * Lifecycle method to re-initialize resources when the activity resumes.
+//     */
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        if (textureView.isAvailable() && !permissionsChecker.hasAllPermissions(this)) {
+//            openCamera();
+//        } else {
+//            textureView.setSurfaceTextureListener(textureListener);
+//        }
+//    }
+
+    private boolean shouldResumeRecording = false;
+
     @Override
     protected void onPause() {
         super.onPause();
+
         if (isRecording) {
             stopRecording();
+            shouldResumeRecording = true; // Indicate that recording should resume on return
         }
-        if (cameraDevice != null) {
-            cameraDevice.close();
-            cameraDevice = null;
-            Log.d(TAG, "CameraDevice closed in onPause.");
-        }
-        if (mediaRecorder != null) {
-            mediaRecorder.release();
-            mediaRecorder = null;
-            Log.d(TAG, "MediaRecorder released in onPause.");
-        }
-        if (gestureRecognition != null) {
-            gestureRecognition.close();
-            Log.d(TAG, "GestureRecognition closed in onPause.");
-        }
-        if (executorService != null) {
-            executorService.shutdown();
-            Log.d(TAG, "ExecutorService shut down in onPause.");
-        }
+
+        // Release resources only if they're currently in use
+        closeCameraSafely();
+        releaseMediaRecorderSafely();
+        releaseGestureRecognitionSafely();
+        shutdownExecutorService();
     }
 
-    /**
-     * Lifecycle method to re-initialize resources when the activity resumes.
-     */
     @Override
     protected void onResume() {
         super.onResume();
-        if (textureView.isAvailable() && !permissionsChecker.hasAllPermissions(this)) {
-            openCamera();
+
+        if (permissionsChecker.hasAllPermissions(this)) {
+            // If the texture is available, set up the camera and start preview
+            if (textureView.isAvailable()) {
+                openCamera();
+                if (shouldResumeRecording) {
+                    startRecording(); // Restart recording if it was interrupted by the pause
+                    shouldResumeRecording = false;
+                }
+            } else {
+                // Set listener to reopen camera when texture is ready
+                textureView.setSurfaceTextureListener(textureListener);
+            }
         } else {
-            textureView.setSurfaceTextureListener(textureListener);
+            // Handle permissions if they are not granted
+            requestNecessaryPermissions();
         }
     }
 
+    // Methods to safely release resources only if they are non-null
+    private void closeCameraSafely() {
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+            Log.d(TAG, "CameraDevice safely closed.");
+        }
+    }
+
+    private void releaseMediaRecorderSafely() {
+        if (mediaRecorder != null) {
+            mediaRecorder.release();
+            mediaRecorder = null;
+            Log.d(TAG, "MediaRecorder safely released.");
+        }
+    }
+
+    private void releaseGestureRecognitionSafely() {
+        if (gestureRecognition != null) {
+            gestureRecognition.close();
+            gestureRecognition = null;
+            Log.d(TAG, "GestureRecognition safely closed.");
+        }
+    }
+
+    private void shutdownExecutorService() {
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+            executorService = null;
+            Log.d(TAG, "ExecutorService shut down.");
+        }
+    }
     /**
      * Gesture TextureView listener.
      * Handles the SurfaceTexture updates for gesture recognition.
