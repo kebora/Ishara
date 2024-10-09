@@ -18,7 +18,7 @@ public class GestureFeedback {
     public void handleGesture(String gesture) {
         if (gesture.contains("palm"))
         {
-            mainActivity.pauseRecording();
+//            mainActivity.pauseRecording();
             Log.d("GestureFeedback", "Palm detected");
             //
         } else if (gesture.contains("like"))
@@ -28,12 +28,15 @@ public class GestureFeedback {
             //
         } else if (gesture.contains("fist"))
         {
+//            mainActivity.startRecording();
             Log.d("GestureFeedback", "Fist detected");
         } else if (gesture.contains("peace"))
         {
+
             Log.d("GestureFeedback", "Peace detected");
         } else if (gesture.contains("ok"))
         {
+//            mainActivity.stopRecording();
             Log.d("GestureFeedback", "OK detected");
         } else if (gesture.contains("stop"))
         {
