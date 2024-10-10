@@ -48,6 +48,7 @@ dependencies {
     implementation 'com.google.mediapipe:tasks-vision:0.20230731'
 //    implementation 'com.google.mediapipe:mediapipe_android:0.10.0'
     //
+    implementation "androidx.drawerlayout:drawerlayout:1.2.0"
     implementation 'org.tensorflow:tensorflow-lite-task-vision-play-services:0.4.2'
     implementation 'com.google.android.gms:play-services-tflite-gpu:16.2.0'
     implementation 'org.tensorflow:tensorflow-lite-gpu:2.10.0'
