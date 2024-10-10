@@ -5,11 +5,14 @@ import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
@@ -17,20 +20,29 @@ import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.widget.Chronometer;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
+import android.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
+import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
 import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
+import com.simiyudaniel.ishara2.permissions.PermissionsChecker;
 import com.simiyudaniel.ishara2.timer.TimerFunction;
 import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
@@ -51,7 +63,7 @@ public class MainActivity extends Activity {
     private CameraCaptureSession cameraCaptureSessions;
     private CaptureRequest.Builder captureRequestBuilder;
     private MediaRecorder mediaRecorder;
-    private boolean isRecording = false;
+    private boolean isRecording,isPaused = false;
     private String videoFilePath;
 
     private ImageButton recordButton, timerImgBtn;
@@ -63,10 +75,24 @@ public class MainActivity extends Activity {
     // ExecutorService for background tasks
     private ExecutorService executorService;
 
+    //PermissionsChecker
+    PermissionsChecker permissionsChecker = new PermissionsChecker();
+
+    //Feedback on gesture detected
+    GestureFeedback gestureFeedback;
+
+    //
+    private Chronometer recordingTimer;
+    private long pauseOffset = 0;
+
+    // for camera flipping
+    private boolean isUsingFrontCamera = false;
+    ImageButton flipCameraBtn;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // Ensure this layout has all referenced UI components
+        setContentView(R.layout.activity_main);
 
         // Initialize ExecutorService
         executorService = Executors.newSingleThreadExecutor();
@@ -78,11 +104,27 @@ public class MainActivity extends Activity {
         timerText = findViewById(R.id.timer_text);
         gestureTextView = findViewById(R.id.gesture_text_view);
 
+        //flip camera button
+        flipCameraBtn = findViewById(R.id.switch_camera_img_btn);
+        flipCameraBtn.setOnClickListener(v -> {
+            isUsingFrontCamera = !isUsingFrontCamera;
+            if (cameraDevice != null) {
+                cameraDevice.close();
+                cameraDevice = null;
+            }
+            openCamera(isUsingFrontCamera);
+        });
+
         // Initialize GestureRecognition
         gestureRecognition = new GestureRecognition(this);
+        //
+        gestureFeedback = new GestureFeedback(this,this);
 
         // Set up TextureView listener
         textureView.setSurfaceTextureListener(textureListener);
+
+        // recording timer
+        recordingTimer = findViewById(R.id.recording_timer);
 
         // Set up Record Button click listener
         recordButton.setOnClickListener(v -> {
@@ -105,29 +147,20 @@ public class MainActivity extends Activity {
         });
 
         // Check and request permissions
-        if (!hasAllPermissions()) {
+        if (!permissionsChecker.hasAllPermissions(this)) {
             requestNecessaryPermissions();
         } else {
-            // Permissions already granted, proceed with camera setup
-            openCamera();
+            // Proceed with camera setup
+            openCamera(isUsingFrontCamera);
         }
     }
 
-    /**
-     * Checks if all necessary permissions are granted.
-     *
-     * @return True if all permissions are granted, false otherwise.
-     */
-    private boolean hasAllPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // For Android 10 and above, WRITE_EXTERNAL_STORAGE is deprecated
-            return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Shutdown executor safely
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdown();
         }
     }
 
@@ -141,7 +174,7 @@ public class MainActivity extends Activity {
                     (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) ||
                     (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE))) {
 
-                // Show an explanation to the user
+                // Prompt for permission
                 new AlertDialog.Builder(this)
                         .setTitle("Permissions Required")
                         .setMessage("This app requires Camera and Audio permissions to function correctly.")
@@ -152,12 +185,12 @@ public class MainActivity extends Activity {
                         })
                         .setNegativeButton("Deny", (dialog, which) -> {
                             Toast.makeText(MainActivity.this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                            finish(); // Close the app
+                            finish();
                         })
                         .create()
                         .show();
             } else {
-                // No explanation needed; request the permissions
+                // Request the permissions
                 ActivityCompat.requestPermissions(this,
                         getRequiredPermissions(),
                         REQUEST_PERMISSIONS_CODE);
@@ -205,12 +238,13 @@ public class MainActivity extends Activity {
                 }
 
                 if (allGranted) {
-                    // All permissions granted, proceed with camera setup
-                    openCamera();
+                    // Proceed with camera setup
+                    openCamera(isUsingFrontCamera);
                 } else {
+                    // todo: Don't exit app::Make it more informative.
                     // Permissions denied
                     Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                    finish(); // Close the app
+                    finish(); // Close app
                 }
             } else {
                 // Permissions denied
@@ -223,12 +257,13 @@ public class MainActivity extends Activity {
     /**
      * Opens the camera by accessing the CameraManager and requesting camera access.
      */
-    private void openCamera() {
+
+    private void openCamera(boolean useFrontCamera) {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
-            String cameraId = manager.getCameraIdList()[0]; // Usually the back camera
+            // 0 for the back camera: 1 for the front camera
+            String cameraId = useFrontCamera ? manager.getCameraIdList()[1] : manager.getCameraIdList()[0];
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                // Permission check is redundant here as we've already handled permissions
                 return;
             }
             manager.openCamera(cameraId, stateCallback, null);
@@ -236,6 +271,7 @@ public class MainActivity extends Activity {
             Log.e(TAG, "CameraAccessException: " + e.getMessage());
         }
     }
+
 
     /**
      * Callback for camera state changes.
@@ -301,6 +337,83 @@ public class MainActivity extends Activity {
     }
 
     /**
+     * Peak Mode
+     *  Temporarily switch views for a set number of seconds
+     */
+
+    private Handler handler = new Handler();
+    private Runnable toggleCameraRunnable;
+    private boolean isPeakModeActive = false;
+    // 1 second toggle interval
+    private int toggleInterval = 1000;
+
+    public void triggerPeakMode(int seconds) {
+        if (!isRecording) {
+            if (isPeakModeActive) {
+                return;
+            }
+
+            isPeakModeActive = true;
+            int totalTimeInMillis = seconds * 1000;
+            final int numberOfToggles = totalTimeInMillis / toggleInterval;
+            final boolean initialCameraState = isUsingFrontCamera;
+
+            toggleCameraRunnable = new Runnable() {
+                int toggleCount = 0;
+
+                @Override
+                public void run() {
+                    // Toggle camera
+                    isUsingFrontCamera = !isUsingFrontCamera;
+                    if (cameraDevice != null) {
+                        cameraDevice.close();
+                        cameraDevice = null;
+                    }
+                    // Open the new camera
+                    openCamera(isUsingFrontCamera);
+
+                    toggleCount++;
+                    if (toggleCount < numberOfToggles) {
+                        // Schedule the next toggle
+                        handler.postDelayed(this, toggleInterval);
+                    } else {
+                        // Stop peak mode after toggling is complete
+                        isPeakModeActive = false;
+                        isUsingFrontCamera = initialCameraState;
+                        if (cameraDevice != null) {
+                            cameraDevice.close();
+                            cameraDevice = null;
+                        }
+                        // go back to original camera
+                        openCamera(isUsingFrontCamera);
+                    }
+                }
+            };
+
+            // Start the camera toggling
+            handler.post(toggleCameraRunnable);
+        }
+    }
+
+    /**
+     * Opens the camera for preview without affecting MediaRecorder session.
+     */
+    private void openPreviewOnly(String cameraId) {
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            manager.openCamera(cameraId, stateCallback, null);
+        } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException: " + e.getMessage());
+        }
+    }
+
+
+
+
+    /**
      * Updates the camera preview by setting the repeating request.
      */
     private void updatePreview() {
@@ -320,7 +433,7 @@ public class MainActivity extends Activity {
     /**
      * Starts video recording by setting up MediaRecorder and configuring the camera session.
      */
-    private void startRecording() {
+    public void startRecording() {
         if (cameraDevice == null) {
             Log.e(TAG, "Cannot start recording: CameraDevice is null.");
             return;
@@ -346,11 +459,22 @@ public class MainActivity extends Activity {
                     cameraCaptureSessions = cameraCaptureSession;
                     updatePreview();
                     runOnUiThread(() -> {
-                        mediaRecorder.start();
-                        isRecording = true;
-                        recordButton.setImageResource(R.drawable.pause_record_icon); // Ensure this drawable exists
-                        Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, "Recording started.");
+                        try {
+                            mediaRecorder.start();
+                            isRecording = true;
+
+                            // Start and display the recording timer
+                            recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+                            recordingTimer.start();
+                            recordingTimer.setVisibility(View.VISIBLE);
+
+                            // Update button and notify user
+                            recordButton.setImageResource(R.drawable.pause_record_icon);
+                            Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "Recording started.");
+                        } catch (IllegalStateException e) {
+                            Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
+                        }
                     });
                 }
 
@@ -365,10 +489,45 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    /**
+     * Pause Recording
+     */
+    public void pauseRecording() {
+        if (isRecording) {
+            mediaRecorder.pause();
+            isPaused = true;
+            isRecording = false;
+
+            // Pause the recording timer and save the offset
+            recordingTimer.stop();
+            pauseOffset = SystemClock.elapsedRealtime() - recordingTimer.getBase();
+            recordButton.setImageResource(R.drawable.stop_record_icon);
+            Log.d(TAG, "Recording paused.");
+        }
+    }
+
+    /**
+     * Resume Recording
+     */
+    public void resumeRecording() {
+        if (isRecording && isPaused) {
+            mediaRecorder.resume();
+            isPaused = false;
+            isRecording = true;
+
+            // Resume the timer from where it left off
+            recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+            recordingTimer.start();
+            recordButton.setImageResource(R.drawable.pause_record_icon);
+            Log.d(TAG, "Recording resumed.");
+        }
+    }
+
     /**
      * Stops video recording and saves the video to the gallery.
      */
-    private void stopRecording() {
+    public void stopRecording() {
         if (!isRecording) {
             Log.e(TAG, "Cannot stop recording: Not currently recording.");
             return;
@@ -377,7 +536,11 @@ public class MainActivity extends Activity {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
-            recordButton.setImageResource(R.drawable.start_record_icon); // Ensure this drawable exists
+            // Stop and reset the timer
+            recordingTimer.stop();
+            recordingTimer.setVisibility(View.GONE);
+            pauseOffset = 0; // Reset the pause offset
+            recordButton.setImageResource(R.drawable.start_record_icon);
             Toast.makeText(this, "Recording Stopped", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Recording stopped.");
 
@@ -386,8 +549,8 @@ public class MainActivity extends Activity {
                 values.put(MediaStore.Video.Media.IS_PENDING, 0);
                 getContentResolver().update(Uri.parse(videoFilePath), values, null, null);
             }
-
-            openCamera(); // Reopen the camera to restart the preview
+            // Reopen the camera to restart the preview
+            openCamera(isUsingFrontCamera);
 
         } catch (RuntimeException e) {
             Log.e(TAG, "RuntimeException while stopping MediaRecorder: " + e.getMessage());
@@ -398,7 +561,7 @@ public class MainActivity extends Activity {
     /**
      * Sets up MediaRecorder with the desired configurations.
      */
-    private void setUpMediaRecorder() throws IOException {
+    private void setUpMediaRecorder() throws IOException, CameraAccessException {
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
@@ -440,56 +603,158 @@ public class MainActivity extends Activity {
         // Set video configurations
         mediaRecorder.setVideoEncodingBitRate(10000000);
         mediaRecorder.setVideoFrameRate(30);
-        mediaRecorder.setVideoSize(1280, 720); // Adjust based on device capabilities
+//        mediaRecorder.setVideoSize(1920, 1080);
+        mediaRecorder.setVideoSize(1280, 720);
         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        // Set orientation hint based on device rotation
+        // Calculate orientation hint based on camera sensor orientation and device rotation
+        int rotation = getWindowManager().getDefaultDisplay().getRotation();
+        int sensorOrientation = getCameraSensorOrientation(); // Get sensor orientation
+        int orientationHint = (sensorOrientation + getDeviceRotationDegrees(rotation-90+360)) % 360;
+
+        mediaRecorder.setOrientationHint(orientationHint);
         mediaRecorder.prepare();
         Log.d(TAG, "MediaRecorder configured.");
+    }
+    // Helper function to get camera sensor orientation
+    private int getCameraSensorOrientation() throws CameraAccessException {
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
+        return characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+    }
+
+    // Helper function to map Surface rotation to degrees
+    private int getDeviceRotationDegrees(int rotation) {
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                return 90;
+            case Surface.ROTATION_90:
+                return 0;
+            case Surface.ROTATION_180:
+                return 270;
+            case Surface.ROTATION_270:
+                return 180;
+            default:
+                return 0;
+        }
     }
 
 
     /**
      * Lifecycle method to release resources when the activity is paused.
      */
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//        if (isRecording) {
+//            stopRecording();
+//        }
+//        if (cameraDevice != null) {
+//            cameraDevice.close();
+//            cameraDevice = null;
+//            Log.d(TAG, "CameraDevice closed in onPause.");
+//        }
+//        if (mediaRecorder != null) {
+//            mediaRecorder.release();
+//            mediaRecorder = null;
+//            Log.d(TAG, "MediaRecorder released in onPause.");
+//        }
+//        if (gestureRecognition != null) {
+//            gestureRecognition.close();
+//            Log.d(TAG, "GestureRecognition closed in onPause.");
+//        }
+//        if (executorService != null) {
+//            executorService.shutdown();
+//            Log.d(TAG, "ExecutorService shut down in onPause.");
+//        }
+//    }
+//
+//    /**
+//     * Lifecycle method to re-initialize resources when the activity resumes.
+//     */
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        if (textureView.isAvailable() && !permissionsChecker.hasAllPermissions(this)) {
+//            openCamera();
+//        } else {
+//            textureView.setSurfaceTextureListener(textureListener);
+//        }
+//    }
+
+    private boolean shouldResumeRecording = false;
+
     @Override
     protected void onPause() {
         super.onPause();
+
         if (isRecording) {
             stopRecording();
+            shouldResumeRecording = true; // Indicate that recording should resume on return
         }
-        if (cameraDevice != null) {
-            cameraDevice.close();
-            cameraDevice = null;
-            Log.d(TAG, "CameraDevice closed in onPause.");
-        }
-        if (mediaRecorder != null) {
-            mediaRecorder.release();
-            mediaRecorder = null;
-            Log.d(TAG, "MediaRecorder released in onPause.");
-        }
-        if (gestureRecognition != null) {
-            gestureRecognition.close();
-            Log.d(TAG, "GestureRecognition closed in onPause.");
-        }
-        if (executorService != null) {
-            executorService.shutdown();
-            Log.d(TAG, "ExecutorService shut down in onPause.");
-        }
+
+        // Release resources only if they're currently in use
+        closeCameraSafely();
+        releaseMediaRecorderSafely();
+        releaseGestureRecognitionSafely();
+        shutdownExecutorService();
     }
 
-    /**
-     * Lifecycle method to re-initialize resources when the activity resumes.
-     */
     @Override
     protected void onResume() {
         super.onResume();
-        if (textureView.isAvailable() && hasAllPermissions()) {
-            openCamera();
+
+        if (permissionsChecker.hasAllPermissions(this)) {
+            // If the texture is available, set up the camera and start preview
+            if (textureView.isAvailable()) {
+                openCamera(isUsingFrontCamera);
+                if (shouldResumeRecording) {
+                    startRecording(); // Restart recording if it was interrupted by the pause
+                    shouldResumeRecording = false;
+                }
+            } else {
+                // Set listener to reopen camera when texture is ready
+                textureView.setSurfaceTextureListener(textureListener);
+            }
         } else {
-            textureView.setSurfaceTextureListener(textureListener);
+            // Handle permissions if they are not granted
+            requestNecessaryPermissions();
         }
     }
 
+    // Methods to safely release resources only if they are non-null
+    private void closeCameraSafely() {
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+            Log.d(TAG, "CameraDevice safely closed.");
+        }
+    }
+
+    private void releaseMediaRecorderSafely() {
+        if (mediaRecorder != null) {
+            mediaRecorder.release();
+            mediaRecorder = null;
+            Log.d(TAG, "MediaRecorder safely released.");
+        }
+    }
+
+    private void releaseGestureRecognitionSafely() {
+        if (gestureRecognition != null) {
+            gestureRecognition.close();
+            gestureRecognition = null;
+            Log.d(TAG, "GestureRecognition safely closed.");
+        }
+    }
+
+    private void shutdownExecutorService() {
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+            executorService = null;
+            Log.d(TAG, "ExecutorService shut down.");
+        }
+    }
     /**
      * Gesture TextureView listener.
      * Handles the SurfaceTexture updates for gesture recognition.
@@ -498,8 +763,8 @@ public class MainActivity extends Activity {
         @Override
         public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
             // Already handled in onCreate after permissions
-            if (hasAllPermissions()) {
-                openCamera();
+            if (permissionsChecker.hasAllPermissions(MainActivity.this)) {
+                openCamera(isUsingFrontCamera);
             } else {
                 requestNecessaryPermissions();
             }
@@ -507,7 +772,7 @@ public class MainActivity extends Activity {
 
         @Override
         public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
-            // Handle size changes if necessary
+            // Handle size changes
         }
 
         @Override
@@ -528,7 +793,6 @@ public class MainActivity extends Activity {
 //            Bitmap bitmap = textureView.getBitmap();
             Bitmap bitmap = textureView.getBitmap(320, 240);
 
-
             if (bitmap != null) {
                 // Run gesture recognition on a background thread
                 executorService.execute(() -> {
@@ -537,50 +801,10 @@ public class MainActivity extends Activity {
                     // Update UI based on recognized gesture
                     runOnUiThread(() -> {
                         gestureTextView.setText("Gesture: " + recognizedGesture);
-                        handleGesture(recognizedGesture);
+                        gestureFeedback.handleGesture(recognizedGesture);
                     });
                 });
             }
         }
     };
-
-    /**
-     * Handles actions based on the recognized gesture.
-     *
-     * @param gesture The name of the recognized gesture.
-     */
-    private void handleGesture(String gesture) {
-        if (gesture.contains("palm")) {
-            Log.d("GestureAction", "Palm detected");
-            startRecording();
-        }
-        else if (gesture.contains("like"))
-        {
-            Log.d("GestureAction", "Like detected");
-        }
-        else if (gesture.contains("fist"))
-        {
-            Log.d("GestureAction", "Fist detected");
-        }
-        else if (gesture.contains("peace"))
-        {
-            Log.d("GestureAction", "Peace detected");
-        }
-        else if (gesture.contains("ok"))
-        {
-            Log.d("GestureAction", "OK detected");
-        }
-        else if (gesture.contains("stop"))
-        {
-            Log.d("GestureAction", "Stop detected");
-        }
-        else if (gesture.contains("one"))
-        {
-            Log.d("GestureAction", "One detected");
-        }
-
-        else {
-            Log.d("GestureAction", "Unknown gesture: " + gesture);
-        }
-    }
 }

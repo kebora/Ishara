@@ -16,13 +16,26 @@
         opencv:layout_constraintStart_toStartOf="parent"
         opencv:layout_constraintTop_toTopOf="parent" />
 
+
     <TextureView
         android:id="@+id/texture_view"
         android:layout_width="match_parent"
-        android:layout_height="503dp"
+        android:layout_height="0dp"
+        app:layout_constraintHeight_percent="0.7"
         tools:layout_editor_absoluteX="0dp"
         opencv:layout_constraintTop_toBottomOf="@+id/include"
         tools:layout_editor_absoluteY="0dp" />
+
+    <Chronometer
+        android:id="@+id/recording_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:textColor="@color/red"
+        android:textSize="18sp"
+        android:visibility="gone"
+        opencv:layout_constraintEnd_toEndOf="parent"
+        opencv:layout_constraintTop_toTopOf="@+id/texture_view" />
 
     <ImageButton
         android:id="@+id/start_record_img_btn"
@@ -119,5 +132,15 @@
         opencv:layout_constraintEnd_toEndOf="@+id/texture_view"
         opencv:layout_constraintStart_toStartOf="@+id/texture_view"
         opencv:layout_constraintTop_toBottomOf="@+id/include" />
+
+    <ImageView
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ishara_teal"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="10dp"
+        opencv:layout_constraintStart_toStartOf="parent"
+        opencv:layout_constraintTop_toTopOf="@+id/switch1" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
