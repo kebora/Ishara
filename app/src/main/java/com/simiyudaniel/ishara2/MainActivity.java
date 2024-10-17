@@ -691,10 +691,23 @@ public class MainActivity extends Activity {
 
         if (isRecording) {
             stopRecording();
-            shouldResumeRecording = true; // Indicate that recording should resume on return
+            shouldResumeRecording = true;
         }
 
-        // Release resources only if they're currently in use
+        // Release resources if currently in use
+        closeCameraSafely();
+        releaseMediaRecorderSafely();
+        releaseGestureRecognitionSafely();
+        shutdownExecutorService();
+    }
+
+    // on Stop
+
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Release all resources
         closeCameraSafely();
         releaseMediaRecorderSafely();
         releaseGestureRecognitionSafely();
