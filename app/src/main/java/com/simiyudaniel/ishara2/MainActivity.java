@@ -29,7 +29,6 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Chronometer;
-import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -37,7 +36,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import android.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
 import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
@@ -67,6 +65,7 @@ public class MainActivity extends Activity {
     private String videoFilePath;
 
     private ImageButton recordButton, timerImgBtn;
+    private ImageView ivSettings;
     private TextView timerText, gestureTextView;
 
     // Gesture recognition
@@ -103,6 +102,18 @@ public class MainActivity extends Activity {
         timerImgBtn = findViewById(R.id.timer_img_btn);
         timerText = findViewById(R.id.timer_text);
         gestureTextView = findViewById(R.id.gesture_text_view);
+        // settings imageview
+        ivSettings = findViewById(R.id.menu_icon);
+        /*
+         * todo: Open Dialog when this button is pressed!
+         * Can also change the drawable file to match the description
+         */
+        ivSettings.setOnClickListener(v->{
+//            Toast.makeText(this,"Pressed on Settings",Toast.LENGTH_SHORT).show();
+
+            Intent intent = new Intent(MainActivity.this, CustomActivity.class);
+            startActivity(intent);
+        });
 
         //flip camera button
         flipCameraBtn = findViewById(R.id.switch_camera_img_btn);
