@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".GesturesFragment">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Timer Duration (5-15 seconds)" />
+
+    <NumberPicker
+        android:id="@+id/numberPickerTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        />
+
+    <!-- Video Duration (1 min and above) -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Video Duration (Minutes)" />
+
+    <NumberPicker
+        android:id="@+id/numberPickerVideoDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        />
+
+</LinearLayout>

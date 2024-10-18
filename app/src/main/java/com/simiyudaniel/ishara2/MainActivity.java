@@ -1,14 +1,11 @@
 package com.simiyudaniel.ishara2;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -21,7 +18,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -34,15 +30,16 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
 import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
 import com.simiyudaniel.ishara2.permissions.PermissionsChecker;
 import com.simiyudaniel.ishara2.timer.TimerFunction;
-import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -51,7 +48,7 @@ import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSIONS_CODE = 1001;
@@ -118,10 +115,30 @@ public class MainActivity extends Activity {
         });
 
         /*
+        Handle when the back button is pressed
+         */
+        OnBackPressedCallback onBackPressedCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setMessage("Would you like to exit app?")
+                .setPositiveButton("Yes", (dialog, id) -> {
+                    releaseResourcesAndExit();
+                })
+                .setNegativeButton("Cancel", (dialog, id) -> {
+                    dialog.dismiss();
+                }).create().show();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this,onBackPressedCallback);
+
+        /*
         Gestures Toggle to open up a dialog box
          */
         ivGestures.setOnClickListener(v->{
 //            Toast.makeText(this,"Hello Gestures",Toast.LENGTH_SHORT).show();
+            GesturesFragment gesturesFragment = new GesturesFragment();
+            gesturesFragment.show(getSupportFragmentManager(), "gesturesFragment");
 
         });
 
@@ -176,20 +193,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /*
-    On Back button Pressed event
-     */
-    @Override
-    public void onBackPressed() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Would you like to exit app?")
-                .setPositiveButton("Yes", (dialog, id) -> {
-                    releaseResourcesAndExit();
-                })
-                .setNegativeButton("Cancel", (dialog, id) -> {
-                    dialog.dismiss();
-                }).create().show();
-    }
     // Called when the user exits with the AlertDialog
     //
     private void releaseResourcesAndExit() {
