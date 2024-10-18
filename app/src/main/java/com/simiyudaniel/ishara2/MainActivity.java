@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
     private String videoFilePath;
 
     private ImageButton recordButton, timerImgBtn;
-    private ImageView ivSettings;
+    private ImageView ivSettings,ivGestures;
     private TextView timerText, gestureTextView;
 
     // Gesture recognition
@@ -104,6 +104,8 @@ public class MainActivity extends Activity {
         gestureTextView = findViewById(R.id.gesture_text_view);
         // settings imageview
         ivSettings = findViewById(R.id.menu_icon);
+        // Gestures imageview
+        ivGestures = findViewById(R.id.ivGestures);
         /*
          * todo: Open Dialog when this button is pressed!
          * Can also change the drawable file to match the description
@@ -113,6 +115,14 @@ public class MainActivity extends Activity {
 
             Intent intent = new Intent(MainActivity.this, CustomActivity.class);
             startActivity(intent);
+        });
+
+        /*
+        Gestures Toggle to open up a dialog box
+         */
+        ivGestures.setOnClickListener(v->{
+//            Toast.makeText(this,"Hello Gestures",Toast.LENGTH_SHORT).show();
+
         });
 
         //flip camera button
@@ -166,6 +176,47 @@ public class MainActivity extends Activity {
         }
     }
 
+    /*
+    On Back button Pressed event
+     */
+    @Override
+    public void onBackPressed() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Would you like to exit app?")
+                .setPositiveButton("Yes", (dialog, id) -> {
+                    releaseResourcesAndExit();
+                })
+                .setNegativeButton("Cancel", (dialog, id) -> {
+                    dialog.dismiss();
+                }).create().show();
+    }
+    // Called when the user exits with the AlertDialog
+    //
+    private void releaseResourcesAndExit() {
+        if (isRecording) {
+            stopRecording();
+        }
+        closeCameraSafely();
+        releaseMediaRecorderSafely();
+        releaseGestureRecognitionSafely();
+        shutdownExecutorService();
+
+        // Finish activity and close app
+        finishAffinity();
+    }
+    //
+
+    /*
+    A very important method to re-create activity.
+     */
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        finish();
+        // Restart the activity
+        startActivity(new Intent(this, MainActivity.class));
+    }
+    //
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -714,7 +765,6 @@ public class MainActivity extends Activity {
 
     // on Stop
 
-
     @Override
     protected void onStop() {
         super.onStop();
@@ -734,7 +784,8 @@ public class MainActivity extends Activity {
             if (textureView.isAvailable()) {
                 openCamera(isUsingFrontCamera);
                 if (shouldResumeRecording) {
-                    startRecording(); // Restart recording if it was interrupted by the pause
+                    // Restart recording if it was interrupted by the pause
+                    startRecording();
                     shouldResumeRecording = false;
                 }
             } else {
