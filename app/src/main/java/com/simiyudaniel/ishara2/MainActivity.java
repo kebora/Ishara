@@ -61,8 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isRecording,isPaused = false;
     private String videoFilePath;
 
-    private ImageButton recordButton, timerImgBtn;
-    private ImageView ivSettings,ivGestures;
+    private ImageButton recordButton;
     private TextView timerText, gestureTextView;
 
     // Gesture recognition
@@ -96,21 +95,21 @@ public class MainActivity extends AppCompatActivity {
         // Initialize UI components
         textureView = findViewById(R.id.texture_view);
         recordButton = findViewById(R.id.start_record_img_btn);
-        timerImgBtn = findViewById(R.id.timer_img_btn);
+        ImageButton timerImgBtn = findViewById(R.id.timer_img_btn);
         timerText = findViewById(R.id.timer_text);
         gestureTextView = findViewById(R.id.gesture_text_view);
         // settings imageview
-        ivSettings = findViewById(R.id.menu_icon);
+        ImageView ivSettings = findViewById(R.id.menu_icon);
         // Gestures imageview
-        ivGestures = findViewById(R.id.ivGestures);
+        ImageView ivGestures = findViewById(R.id.ivGestures);
         /*
-         * todo: Open Dialog when this button is pressed!
+         * todo: Open AppDialog when this button is pressed!
          * Can also change the drawable file to match the description
          */
         ivSettings.setOnClickListener(v->{
 //            Toast.makeText(this,"Pressed on Settings",Toast.LENGTH_SHORT).show();
 
-            Intent intent = new Intent(MainActivity.this, CustomActivity.class);
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
             startActivity(intent);
         });
 
@@ -122,18 +121,14 @@ public class MainActivity extends AppCompatActivity {
             public void handleOnBackPressed() {
                         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setMessage("Would you like to exit app?")
-                .setPositiveButton("Yes", (dialog, id) -> {
-                    releaseResourcesAndExit();
-                })
-                .setNegativeButton("Cancel", (dialog, id) -> {
-                    dialog.dismiss();
-                }).create().show();
+                .setPositiveButton("Yes", (dialog, id) -> releaseResourcesAndExit())
+                .setNegativeButton("Cancel", (dialog, id) -> dialog.dismiss()).create().show();
             }
         };
         getOnBackPressedDispatcher().addCallback(this,onBackPressedCallback);
 
         /*
-        Gestures Toggle to open up a dialog box
+         * todo:Gestures Toggle to open up a dialog box
          */
         ivGestures.setOnClickListener(v->{
 //            Toast.makeText(this,"Hello Gestures",Toast.LENGTH_SHORT).show();
@@ -233,33 +228,31 @@ public class MainActivity extends AppCompatActivity {
      * Requests all necessary permissions at runtime.
      */
     private void requestNecessaryPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ||
-                    shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) ||
-                    (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) ||
-                    (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE))) {
+        if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ||
+                shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) ||
+                (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) ||
+                (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) && shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE))) {
 
-                // Prompt for permission
-                new AlertDialog.Builder(this)
-                        .setTitle("Permissions Required")
-                        .setMessage("This app requires Camera and Audio permissions to function correctly.")
-                        .setPositiveButton("Grant", (dialog, which) -> {
-                            ActivityCompat.requestPermissions(MainActivity.this,
-                                    getRequiredPermissions(),
-                                    REQUEST_PERMISSIONS_CODE);
-                        })
-                        .setNegativeButton("Deny", (dialog, which) -> {
-                            Toast.makeText(MainActivity.this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                            finish();
-                        })
-                        .create()
-                        .show();
-            } else {
-                // Request the permissions
-                ActivityCompat.requestPermissions(this,
-                        getRequiredPermissions(),
-                        REQUEST_PERMISSIONS_CODE);
-            }
+            // Prompt for permission
+            new AlertDialog.Builder(this)
+                    .setTitle("Permissions Required")
+                    .setMessage("This app requires Camera and Audio permissions to function correctly.")
+                    .setPositiveButton("Grant", (dialog, which) -> {
+                        ActivityCompat.requestPermissions(MainActivity.this,
+                                getRequiredPermissions(),
+                                REQUEST_PERMISSIONS_CODE);
+                    })
+                    .setNegativeButton("Deny", (dialog, which) -> {
+                        Toast.makeText(MainActivity.this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
+                        finish();
+                    })
+                    .create()
+                    .show();
+        } else {
+            // Request the permissions
+            ActivityCompat.requestPermissions(this,
+                    getRequiredPermissions(),
+                    REQUEST_PERMISSIONS_CODE);
         }
     }
 
@@ -303,18 +296,14 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (allGranted) {
+                    /*
+                     * todo: If user is installing app for the first time, then recreate activity, else simply openCamera().
+                     */
+                    finish();
+                    startActivity(new Intent(this, MainActivity.class));
                     // Proceed with camera setup
-                    openCamera(isUsingFrontCamera);
-                } else {
-                    // todo: Don't exit app::Make it more informative.
-                    // Permissions denied
-                    Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                    finish(); // Close app
+//                     openCamera(isUsingFrontCamera);
                 }
-            } else {
-                // Permissions denied
-                Toast.makeText(this, "Permissions not granted. App cannot function.", Toast.LENGTH_LONG).show();
-                finish(); // Close the app
             }
         }
     }
@@ -406,11 +395,10 @@ public class MainActivity extends AppCompatActivity {
      *  Temporarily switch views for a set number of seconds
      */
 
-    private Handler handler = new Handler();
-    private Runnable toggleCameraRunnable;
+    private final Handler handler = new Handler();
     private boolean isPeakModeActive = false;
     // 1 second toggle interval
-    private int toggleInterval = 1000;
+    private final int toggleInterval = 1000;
 
     public void triggerPeakMode(int seconds) {
         if (!isRecording) {
@@ -423,7 +411,12 @@ public class MainActivity extends AppCompatActivity {
             final int numberOfToggles = totalTimeInMillis / toggleInterval;
             final boolean initialCameraState = isUsingFrontCamera;
 
-            toggleCameraRunnable = new Runnable() {
+            // Toggle camera
+            // Open the new camera
+            // Schedule the next toggle
+            // Stop peak mode after toggling is complete
+            // go back to original camera
+            Runnable toggleCameraRunnable = new Runnable() {
                 int toggleCount = 0;
 
                 @Override
@@ -704,49 +697,6 @@ public class MainActivity extends AppCompatActivity {
                 return 0;
         }
     }
-
-
-    /**
-     * Lifecycle method to release resources when the activity is paused.
-     */
-//    @Override
-//    protected void onPause() {
-//        super.onPause();
-//        if (isRecording) {
-//            stopRecording();
-//        }
-//        if (cameraDevice != null) {
-//            cameraDevice.close();
-//            cameraDevice = null;
-//            Log.d(TAG, "CameraDevice closed in onPause.");
-//        }
-//        if (mediaRecorder != null) {
-//            mediaRecorder.release();
-//            mediaRecorder = null;
-//            Log.d(TAG, "MediaRecorder released in onPause.");
-//        }
-//        if (gestureRecognition != null) {
-//            gestureRecognition.close();
-//            Log.d(TAG, "GestureRecognition closed in onPause.");
-//        }
-//        if (executorService != null) {
-//            executorService.shutdown();
-//            Log.d(TAG, "ExecutorService shut down in onPause.");
-//        }
-//    }
-//
-//    /**
-//     * Lifecycle method to re-initialize resources when the activity resumes.
-//     */
-//    @Override
-//    protected void onResume() {
-//        super.onResume();
-//        if (textureView.isAvailable() && !permissionsChecker.hasAllPermissions(this)) {
-//            openCamera();
-//        } else {
-//            textureView.setSurfaceTextureListener(textureListener);
-//        }
-//    }
 
     private boolean shouldResumeRecording = false;
 
