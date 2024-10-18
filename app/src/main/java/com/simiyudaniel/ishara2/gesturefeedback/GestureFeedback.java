@@ -27,7 +27,7 @@ public class GestureFeedback {
             /**
              * Toggle interval (in seconds)
              */
-            mainActivity.triggerPeakMode(10);
+            //mainActivity.triggerPeakMode(10);
             Log.d("GestureFeedback", "Like detected");
             //
         } else if (gesture.contains("fist"))
