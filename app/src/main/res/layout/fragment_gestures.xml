@@ -11,24 +11,17 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Select Timer Duration (5-15 seconds)" />
+        android:text="@string/customize_your_gesture_functionalities" />
 
-    <NumberPicker
-        android:id="@+id/numberPickerTimer"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/llGestures"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        />
+        android:orientation="horizontal"
+        >
 
-    <!-- Video Duration (1 min and above) -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Select Video Duration (Minutes)" />
+    </LinearLayout>
 
-    <NumberPicker
-        android:id="@+id/numberPickerVideoDuration"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        />
+
 
 </LinearLayout>

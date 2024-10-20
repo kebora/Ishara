@@ -15,6 +15,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.NumberPicker;
 
+import java.util.Objects;
+
 public class GesturesFragment extends DialogFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -30,19 +32,14 @@ public class GesturesFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireActivity());
         LayoutInflater inflater = requireActivity().getLayoutInflater();
         View view = inflater.inflate(R.layout.fragment_gestures, null);
-
-        NumberPicker numberPickerTimer = view.findViewById(R.id.numberPickerTimer);
-        NumberPicker numberPickerVideoDuration = view.findViewById(R.id.numberPickerVideoDuration);
 
 
         builder.setView(view)
                 .setTitle("Gesture Settings")
                 .setPositiveButton("OK", (dialog, id) -> {
-                    int timerDuration = numberPickerTimer.getValue();
-                    int videoDuration = numberPickerVideoDuration.getValue();
 
                 })
                 .setNegativeButton("Cancel", (dialog, id) -> {
