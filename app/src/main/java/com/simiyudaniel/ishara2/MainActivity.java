@@ -73,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
     //PermissionsChecker
     PermissionsChecker permissionsChecker = new PermissionsChecker();
 
-    //Feedback on gesture detected
+    // feedback on gesture detected
     GestureFeedback gestureFeedback;
 
     //
