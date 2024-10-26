@@ -35,6 +35,7 @@
         android:textSize="18sp"
         android:visibility="gone"
         opencv:layout_constraintEnd_toEndOf="parent"
+        android:fontFamily="@font/montserrat_regular"
         opencv:layout_constraintTop_toTopOf="@+id/texture_view" />
 
     <ImageButton
@@ -78,6 +79,7 @@
         android:layout_gravity="top|end"
         android:textSize="14sp"
         android:visibility="visible"
+        android:fontFamily="@font/montserrat_regular"
         android:elevation="4dp"/>
 
 </FrameLayout>
@@ -103,6 +105,7 @@
         android:textSize="20dp"
         opencv:layout_constraintEnd_toEndOf="parent"
         opencv:layout_constraintStart_toStartOf="parent"
+        android:fontFamily="@font/montserrat_regular"
         opencv:layout_constraintTop_toBottomOf="@+id/texture_view" />
 
     <TextView
@@ -116,6 +119,7 @@
         opencv:layout_constraintBottom_toTopOf="@+id/start_record_img_btn"
         opencv:layout_constraintEnd_toEndOf="parent"
         opencv:layout_constraintStart_toStartOf="parent"
+        android:fontFamily="@font/montserrat_regular"
         opencv:layout_constraintTop_toBottomOf="@+id/switch1" />
 
     <TextView
@@ -128,6 +132,7 @@
         android:background="@drawable/rounded_button_background"
         android:textSize="60dp"
         android:padding="20dp"
+        android:fontFamily="@font/montserrat_regular"
         opencv:layout_constraintBottom_toBottomOf="@+id/texture_view"
         opencv:layout_constraintEnd_toEndOf="@+id/texture_view"
         opencv:layout_constraintStart_toStartOf="@+id/texture_view"
