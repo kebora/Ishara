@@ -103,14 +103,11 @@ public class MainActivity extends AppCompatActivity {
         // Gestures imageview
         ImageView ivGestures = findViewById(R.id.ivGestures);
         /*
-         * todo: Open AppDialog when this button is pressed!
-         * Can also change the drawable file to match the description
+         * Open the SettingsFragment
          */
         ivSettings.setOnClickListener(v->{
-//            Toast.makeText(this,"Pressed on Settings",Toast.LENGTH_SHORT).show();
-
-            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-            startActivity(intent);
+            SettingsFragment settingsFragment = new SettingsFragment();
+            settingsFragment.show(getSupportFragmentManager(),"settingsFragment");
         });
 
         /*
@@ -128,10 +125,9 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this,onBackPressedCallback);
 
         /*
-         * todo:Gestures Toggle to open up a dialog box
+         * Open the GesturesFragment
          */
         ivGestures.setOnClickListener(v->{
-//            Toast.makeText(this,"Hello Gestures",Toast.LENGTH_SHORT).show();
             GesturesFragment gesturesFragment = new GesturesFragment();
             gesturesFragment.show(getSupportFragmentManager(), "gesturesFragment");
 
