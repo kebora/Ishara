@@ -85,6 +85,9 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     private boolean isUsingFrontCamera = false;
     ImageButton flipCameraBtn;
 
+    // for the timer
+    private int timerValue;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
 
         // Retrieve shared prefs value ::: for app settings Fragment
         SharedPreferences sharedPreferences = getSharedPreferences("ishara_prefs", MODE_PRIVATE);
-        int timerValue = sharedPreferences.getInt("timer_value", 10);
+        timerValue = sharedPreferences.getInt("timer_value", 10);
 
         // set the tag text for the timer
         timerTagText = findViewById(R.id.tag_text);
@@ -177,13 +180,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
 
         // Timer Image Button
         timerImgBtn.setOnClickListener(v -> {
-            timerText.setVisibility(TextView.VISIBLE);
-            TimerFunction timerFunction = new TimerFunction(timerText, timerValue, () -> {
-                if (!isRecording) {
-                    startRecording();
-                }
-            });
-            timerFunction.startCountdown();
+            startTimerCountDown();
         });
 
         // Check and request permissions
@@ -195,6 +192,15 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
         }
     }
 
+    public void startTimerCountDown(){
+        timerText.setVisibility(TextView.VISIBLE);
+        TimerFunction timerFunction = new TimerFunction(timerText, timerValue, () -> {
+            if (!isRecording) {
+                startRecording();
+            }
+        });
+        timerFunction.startCountdown();
+    }
     // Called when the user exits with the AlertDialog
     //
     private void releaseResourcesAndExit() {
