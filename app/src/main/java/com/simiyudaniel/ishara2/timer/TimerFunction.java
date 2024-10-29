@@ -36,7 +36,7 @@ public class TimerFunction {
         }.start();
     }
 
-    // Define an interface to handle the callback after the timer finishes
+    // An interface to handle callback after the timer finishes
     public interface TimerCallback {
         void onTimerFinished();
     }

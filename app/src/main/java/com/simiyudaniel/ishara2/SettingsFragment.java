@@ -2,7 +2,9 @@ package com.simiyudaniel.ishara2;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -18,12 +20,26 @@ import androidx.fragment.app.DialogFragment;
 public class SettingsFragment extends DialogFragment {
 
     private EditText timerEditText;
-    private EditText appTimeoutEditText;
     private SharedPreferences sharedPreferences;
 
-    // Default values
+    // Default value::: Timer
     private static final int DEFAULT_TIMER_VALUE = 10;
-    private static final int DEFAULT_APP_TIMEOUT_VALUE = 60;
+
+    public interface SettingsListener {
+        void onSettingsSaved(int timerValue);
+    }
+    //
+    private SettingsListener settingsListener;
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        try {
+            settingsListener = (SettingsListener) context;
+        } catch (ClassCastException e) {
+            throw new ClassCastException(context + " must implement SettingsListener");
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -42,14 +58,13 @@ public class SettingsFragment extends DialogFragment {
 
         // Initialize EditText fields
         timerEditText = view.findViewById(R.id.etTimerValue);
-        appTimeoutEditText = view.findViewById(R.id.etAppTimeoutValue);
 
-        // Load saved values or set default values
+        // Load saved values
         loadSavedValues();
 
         builder.setView(view)
                 .setTitle("App Settings")
-                .setPositiveButton("SAVE", (dialog, which) -> {
+                .setPositiveButton("OK", (dialog, which) -> {
                     saveValues();
                 })
                 .setNegativeButton("Cancel", (dialog, id) -> dialog.dismiss());
@@ -58,13 +73,10 @@ public class SettingsFragment extends DialogFragment {
     }
 
     private void loadSavedValues() {
-        // Load saved values or set defaults
         int savedTimerValue = sharedPreferences.getInt("timer_value", DEFAULT_TIMER_VALUE);
-        int savedAppTimeoutValue = sharedPreferences.getInt("app_timeout_value", DEFAULT_APP_TIMEOUT_VALUE);
 
         //
         timerEditText.setText(String.valueOf(savedTimerValue));
-        appTimeoutEditText.setText(String.valueOf(savedAppTimeoutValue));
     }
 
     private void saveValues() {
@@ -72,18 +84,21 @@ public class SettingsFragment extends DialogFragment {
 
         //
         String timerValueText = timerEditText.getText().toString();
-        String appTimeoutValueText = appTimeoutEditText.getText().toString();
 
         int timerValue = TextUtils.isEmpty(timerValueText) ? DEFAULT_TIMER_VALUE : Integer.parseInt(timerValueText);
-        int appTimeoutValue = TextUtils.isEmpty(appTimeoutValueText) ? DEFAULT_APP_TIMEOUT_VALUE : Integer.parseInt(appTimeoutValueText);
 
         // Save the values
         editor.putInt("timer_value", timerValue);
-        editor.putInt("app_timeout_value", appTimeoutValue);
-
         //
         editor.apply();
 
-        Toast.makeText(requireContext(), "Settings saved!", Toast.LENGTH_SHORT).show();
+        // Notify MainActivity about the saved values
+        //todo: find a way to allow using new values without restarting.
+        // check RXJava
+        if (settingsListener != null) {
+            settingsListener.onSettingsSaved(timerValue);
+        }
+        // Notify user to restart app
+        Toast.makeText(requireContext(), "Restart App", Toast.LENGTH_LONG).show();
     }
 }

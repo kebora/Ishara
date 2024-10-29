@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
@@ -48,7 +49,7 @@ import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SettingsFragment.SettingsListener {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSIONS_CODE = 1001;
@@ -62,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
     private String videoFilePath;
 
     private ImageButton recordButton;
-    private TextView timerText, gestureTextView;
+    private TextView timerText, gestureTextView, timerTagText;
 
     // Gesture recognition
     private GestureRecognition gestureRecognition;
@@ -92,14 +93,24 @@ public class MainActivity extends AppCompatActivity {
         // Initialize ExecutorService
         executorService = Executors.newSingleThreadExecutor();
 
+        // Retrieve shared prefs value ::: for app settings Fragment
+        SharedPreferences sharedPreferences = getSharedPreferences("ishara_prefs", MODE_PRIVATE);
+        int timerValue = sharedPreferences.getInt("timer_value", 10);
+
+        // set the tag text for the timer
+        timerTagText = findViewById(R.id.tag_text);
+        timerTagText.setText(timerValue+"s");
+
         // Initialize UI components
         textureView = findViewById(R.id.texture_view);
         recordButton = findViewById(R.id.start_record_img_btn);
         ImageButton timerImgBtn = findViewById(R.id.timer_img_btn);
         timerText = findViewById(R.id.timer_text);
         gestureTextView = findViewById(R.id.gesture_text_view);
+
         // settings imageview
         ImageView ivSettings = findViewById(R.id.menu_icon);
+
         // Gestures imageview
         ImageView ivGestures = findViewById(R.id.ivGestures);
         /*
@@ -164,10 +175,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Set up Timer Image Button click listener
+        // Timer Image Button
         timerImgBtn.setOnClickListener(v -> {
             timerText.setVisibility(TextView.VISIBLE);
-            TimerFunction timerFunction = new TimerFunction(timerText, 10, () -> {
+            TimerFunction timerFunction = new TimerFunction(timerText, timerValue, () -> {
                 if (!isRecording) {
                     startRecording();
                 }
@@ -831,4 +842,13 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
+
+    @Override
+    public void onSettingsSaved(int timerValue) {
+        updateTagText(timerValue);
+    }
+//
+    private void updateTagText(int timerValue) {
+        timerTagText.setText(timerValue + "s");
+    }
 }
