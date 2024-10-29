@@ -97,10 +97,10 @@ public class GesturesFragment extends DialogFragment {
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
         if (!sharedPreferences.contains("fist")) {
-            editor.putString("fist", GestureFunctionalities.START_RECORDING.name());
+            editor.putString("fist", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("ok")) {
-            editor.putString("ok", GestureFunctionalities.PAUSE_RECORDING.name());
+            editor.putString("ok", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("like")) {
             editor.putString("like", GestureFunctionalities.DISABLE.name());
@@ -109,13 +109,13 @@ public class GesturesFragment extends DialogFragment {
             editor.putString("one", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("peace")) {
-            editor.putString("peace", GestureFunctionalities.PAUSE_RECORDING.name());
+            editor.putString("peace", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("palm")) {
             editor.putString("palm", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("stop")) {
-            editor.putString("stop", GestureFunctionalities.STOP_RECORDING.name());
+            editor.putString("stop", GestureFunctionalities.DISABLE.name());
         }
 
         editor.apply();
