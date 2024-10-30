@@ -22,7 +22,5 @@
         android:inputType="number"
         android:background="@drawable/etradius"
         android:gravity="center"
-        android:backgroundTint="#808080"
-        android:textColor="@color/white"
         />
 </LinearLayout>
