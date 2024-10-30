@@ -85,16 +85,22 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     // for camera flipping
     private boolean isUsingFrontCamera = false;
     ImageButton flipCameraBtn;
-
     // for the timer
     private int timerValue;
     //
-    SoundPlayer soundPlayer;
+    SoundPlayer soundPlayerBeep,soundPlayerRecStarted,
+            soundPlayerRecStopped,soundPlayerPaused;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // sound player
+        soundPlayerBeep = new SoundPlayer(MainActivity.this,R.raw.alert);
+        soundPlayerRecStarted = new SoundPlayer(MainActivity.this,R.raw.recording_started);
+        soundPlayerRecStopped = new SoundPlayer(MainActivity.this,R.raw.recording_stopped);
+        soundPlayerPaused = new SoundPlayer(MainActivity.this,R.raw.recording_paused);
 
         // Initialize ExecutorService
         executorService = Executors.newSingleThreadExecutor();
@@ -183,6 +189,8 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
 
         // Timer Image Button
         timerImgBtn.setOnClickListener(v -> {
+            // Beep when timer starts
+            soundPlayerBeep.playSound();
             startTimerCountDown();
         });
 
@@ -194,8 +202,8 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             openCamera(isUsingFrontCamera);
         }
     }
-
-    public void startTimerCountDown(){
+    // function crashes when directly accessed by a gesture
+    private void startTimerCountDown(){
         timerText.setVisibility(TextView.VISIBLE);
         TimerFunction timerFunction = new TimerFunction(timerText, timerValue, () -> {
             if (!isRecording) {
@@ -203,6 +211,11 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             }
         });
         timerFunction.startCountdown();
+    }
+
+    // click the timer Button
+    public void triggerTimerBtn(){
+        startTimerCountDown();
     }
     // Called when the user exits with the AlertDialog
     //
@@ -492,13 +505,11 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
      */
     private void updatePreview() {
         if (cameraDevice == null) {
-            Log.e(TAG, "CameraDevice is null in updatePreview.");
             return;
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
         try {
             cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, null);
-            Log.d(TAG, "Camera preview updated.");
         } catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException in updatePreview: " + e.getMessage());
         }
@@ -509,7 +520,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
      */
     public void startRecording() {
         if (cameraDevice == null) {
-            Log.e(TAG, "Cannot start recording: CameraDevice is null.");
+            Toast.makeText(this,"Cannot find Camera!",Toast.LENGTH_SHORT);
             return;
         }
         try {
@@ -542,10 +553,12 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
                             recordingTimer.start();
                             recordingTimer.setVisibility(View.VISIBLE);
 
-                            // Update button and notify user
+                            //
                             recordButton.setImageResource(R.drawable.pause_record_icon);
                             Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
-                            Log.d(TAG, "Recording started.");
+                            // notify user ::: audio file
+                            soundPlayerRecStarted.playSound();
+                            //
                         } catch (IllegalStateException e) {
                             Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
                         }
@@ -555,7 +568,6 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
                 @Override
                 public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
                     Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
-                    Log.e(TAG, "Camera capture session configuration failed during recording.");
                 }
             }, null);
         } catch (CameraAccessException | IOException e) {
@@ -572,12 +584,12 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             mediaRecorder.pause();
             isPaused = true;
             isRecording = false;
-
-            // Pause the recording timer and save the offset
+            //
             recordingTimer.stop();
             pauseOffset = SystemClock.elapsedRealtime() - recordingTimer.getBase();
             recordButton.setImageResource(R.drawable.stop_record_icon);
-            Log.d(TAG, "Recording paused.");
+            //
+            soundPlayerPaused.playSound();
         }
     }
 
@@ -589,13 +601,12 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             mediaRecorder.resume();
             isPaused = false;
             isRecording = true;
-
-            // Resume the timer from where it left off
+            // Resume timer
             recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
             recordingTimer.start();
             recordButton.setImageResource(R.drawable.pause_record_icon);
-            Log.d(TAG, "Recording resumed.");
-
+            //
+            soundPlayerRecStarted.playSound();
         }
     }
 
@@ -604,20 +615,17 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
      */
     public void stopRecording() {
         if (!isRecording) {
-            Log.e(TAG, "Cannot stop recording: Not currently recording.");
             return;
         }
         try {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
-            // Stop and reset the timer
             recordingTimer.stop();
             recordingTimer.setVisibility(View.GONE);
-            pauseOffset = 0; // Reset the pause offset
+            pauseOffset = 0;
             recordButton.setImageResource(R.drawable.start_record_icon);
-            Toast.makeText(this, "Recording Stopped", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Recording stopped.");
+            soundPlayerRecStopped.playSound();
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues values = new ContentValues();
@@ -628,8 +636,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             openCamera(isUsingFrontCamera);
 
         } catch (RuntimeException e) {
-            Log.e(TAG, "RuntimeException while stopping MediaRecorder: " + e.getMessage());
-            Toast.makeText(this, "Failed to stop recording properly.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Error in stopping recording!.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -685,12 +692,12 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
         // Set orientation hint based on device rotation
         // Calculate orientation hint based on camera sensor orientation and device rotation
         int rotation = getWindowManager().getDefaultDisplay().getRotation();
-        int sensorOrientation = getCameraSensorOrientation(); // Get sensor orientation
+        // Get sensor orientation
+        int sensorOrientation = getCameraSensorOrientation();
         int orientationHint = (sensorOrientation + getDeviceRotationDegrees(rotation-90+360)) % 360;
 
         mediaRecorder.setOrientationHint(orientationHint);
         mediaRecorder.prepare();
-        Log.d(TAG, "MediaRecorder configured.");
     }
     // Helper function to get camera sensor orientation
     private int getCameraSensorOrientation() throws CameraAccessException {
@@ -738,7 +745,6 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     @Override
     protected void onStop() {
         super.onStop();
-        // Release all resources
         closeCameraSafely();
         releaseMediaRecorderSafely();
         releaseGestureRecognitionSafely();
@@ -797,7 +803,6 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
         if (executorService != null && !executorService.isShutdown()) {
             executorService.shutdownNow();
             executorService = null;
-            Log.d(TAG, "ExecutorService shut down.");
         }
     }
     /**
@@ -857,7 +862,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     public void onSettingsSaved(int timerValue) {
         updateTagText(timerValue);
     }
-//
+    //
     private void updateTagText(int timerValue) {
         timerTagText.setText(timerValue + "s");
     }

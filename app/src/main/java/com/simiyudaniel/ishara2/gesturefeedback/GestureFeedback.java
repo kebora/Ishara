@@ -64,11 +64,10 @@ public class GestureFeedback {
                 mainActivity.triggerPeakMode(10);
                 break;
             case START_TIMER:
-                mainActivity.startTimerCountDown();
+                mainActivity.triggerTimerBtn();
                 break;
             case DISABLE:
             default:
-                Log.d("GestureFeedback", "No functionality attached to this gesture");
                 break;
         }
     }
