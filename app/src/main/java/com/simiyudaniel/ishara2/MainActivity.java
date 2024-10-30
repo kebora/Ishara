@@ -41,6 +41,7 @@ import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
 import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
 import com.simiyudaniel.ishara2.permissions.PermissionsChecker;
 import com.simiyudaniel.ishara2.timer.TimerFunction;
+import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -87,6 +88,8 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
 
     // for the timer
     private int timerValue;
+    //
+    SoundPlayer soundPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -565,7 +568,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
      * Pause Recording
      */
     public void pauseRecording() {
-        if (isRecording) {
+        if (isRecording && !isPaused) {
             mediaRecorder.pause();
             isPaused = true;
             isRecording = false;
@@ -592,6 +595,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             recordingTimer.start();
             recordButton.setImageResource(R.drawable.pause_record_icon);
             Log.d(TAG, "Recording resumed.");
+
         }
     }
 
