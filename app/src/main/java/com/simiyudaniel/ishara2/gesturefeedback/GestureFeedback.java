@@ -63,9 +63,6 @@ public class GestureFeedback {
             case PEEK_MODE:
                 mainActivity.triggerPeakMode(10);
                 break;
-            case START_TIMER:
-                mainActivity.triggerTimerBtn();
-                break;
             case DISABLE:
             default:
                 break;

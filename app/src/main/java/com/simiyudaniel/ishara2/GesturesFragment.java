@@ -33,7 +33,7 @@ public class GesturesFragment extends DialogFragment {
     // Enum for gesture functionalities
     public enum GestureFunctionalities {
         PEEK_MODE, START_RECORDING, RESUME_RECORDING, PAUSE_RECORDING,
-        STOP_RECORDING, START_TIMER, DISABLE
+        STOP_RECORDING, DISABLE
     }
 
     @Override
@@ -101,13 +101,13 @@ public class GesturesFragment extends DialogFragment {
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
         if (!sharedPreferences.contains("fist")) {
-            editor.putString("fist", GestureFunctionalities.DISABLE.name());
+            editor.putString("fist", GestureFunctionalities.START_RECORDING.name());
         }
         if (!sharedPreferences.contains("ok")) {
-            editor.putString("ok", GestureFunctionalities.DISABLE.name());
+            editor.putString("ok", GestureFunctionalities.PAUSE_RECORDING.name());
         }
         if (!sharedPreferences.contains("like")) {
-            editor.putString("like", GestureFunctionalities.DISABLE.name());
+            editor.putString("like", GestureFunctionalities.RESUME_RECORDING.name());
         }
         if (!sharedPreferences.contains("one")) {
             editor.putString("one", GestureFunctionalities.DISABLE.name());
@@ -119,7 +119,7 @@ public class GesturesFragment extends DialogFragment {
             editor.putString("palm", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("stop")) {
-            editor.putString("stop", GestureFunctionalities.DISABLE.name());
+            editor.putString("stop", GestureFunctionalities.STOP_RECORDING.name());
         }
 
         editor.apply();

@@ -158,13 +158,16 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
 
         //flip camera button
         flipCameraBtn = findViewById(R.id.switch_camera_img_btn);
+        //
         flipCameraBtn.setOnClickListener(v -> {
-            isUsingFrontCamera = !isUsingFrontCamera;
-            if (cameraDevice != null) {
-                cameraDevice.close();
-                cameraDevice = null;
+            if(!isRecording){
+                isUsingFrontCamera = !isUsingFrontCamera;
+                if (cameraDevice != null) {
+                    cameraDevice.close();
+                    cameraDevice = null;
+                }
+                openCamera(isUsingFrontCamera);
             }
-            openCamera(isUsingFrontCamera);
         });
 
         // Initialize GestureRecognition
@@ -189,9 +192,9 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
 
         // Timer Image Button
         timerImgBtn.setOnClickListener(v -> {
-            // Beep when timer starts
-            soundPlayerBeep.playSound();
-            startTimerCountDown();
+            if(!isRecording){
+                startTimerCountDown();
+            }
         });
 
         // Check and request permissions
@@ -211,11 +214,6 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             }
         });
         timerFunction.startCountdown();
-    }
-
-    // click the timer Button
-    public void triggerTimerBtn(){
-        startTimerCountDown();
     }
     // Called when the user exits with the AlertDialog
     //
@@ -519,60 +517,67 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
      * Starts video recording by setting up MediaRecorder and configuring the camera session.
      */
     public void startRecording() {
-        if (cameraDevice == null) {
-            Toast.makeText(this,"Cannot find Camera!",Toast.LENGTH_SHORT);
-            return;
-        }
-        try {
-            setUpMediaRecorder();
-            SurfaceTexture texture = textureView.getSurfaceTexture();
-            if (texture == null) {
-                Log.e(TAG, "SurfaceTexture is null in startRecording.");
+        /**
+         * Only run function if not already recording
+         * todo: check on possibility of starting new recording even when one already exists
+         */
+        if(!isRecording){
+            if (cameraDevice == null) {
+                Toast.makeText(this,"Cannot find Camera!",Toast.LENGTH_SHORT);
                 return;
             }
-            texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
-            Surface previewSurface = new Surface(texture);
-            Surface recordSurface = mediaRecorder.getSurface();
-
-            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-            captureRequestBuilder.addTarget(previewSurface);
-            captureRequestBuilder.addTarget(recordSurface);
-
-            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
-                @Override
-                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    cameraCaptureSessions = cameraCaptureSession;
-                    updatePreview();
-                    runOnUiThread(() -> {
-                        try {
-                            mediaRecorder.start();
-                            isRecording = true;
-
-                            // Start and display the recording timer
-                            recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
-                            recordingTimer.start();
-                            recordingTimer.setVisibility(View.VISIBLE);
-
-                            //
-                            recordButton.setImageResource(R.drawable.pause_record_icon);
-                            Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
-                            // notify user ::: audio file
-                            soundPlayerRecStarted.playSound();
-                            //
-                        } catch (IllegalStateException e) {
-                            Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
-                        }
-                    });
+            try {
+                setUpMediaRecorder();
+                SurfaceTexture texture = textureView.getSurfaceTexture();
+                if (texture == null) {
+                    Log.e(TAG, "SurfaceTexture is null in startRecording.");
+                    return;
                 }
+                texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
+                Surface previewSurface = new Surface(texture);
+                Surface recordSurface = mediaRecorder.getSurface();
 
-                @Override
-                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
-                }
-            }, null);
-        } catch (CameraAccessException | IOException e) {
-            Log.e(TAG, "Exception in startRecording: " + e.getMessage());
+                captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+                captureRequestBuilder.addTarget(previewSurface);
+                captureRequestBuilder.addTarget(recordSurface);
+
+                cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
+                    @Override
+                    public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                        cameraCaptureSessions = cameraCaptureSession;
+                        updatePreview();
+                        runOnUiThread(() -> {
+                            try {
+                                mediaRecorder.start();
+                                isRecording = true;
+
+                                // Start and display the recording timer
+                                recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+                                recordingTimer.start();
+                                recordingTimer.setVisibility(View.VISIBLE);
+
+                                //
+                                recordButton.setImageResource(R.drawable.pause_record_icon);
+                                Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
+                                // notify user ::: audio file
+                                soundPlayerRecStarted.playSound();
+                                //
+                            } catch (IllegalStateException e) {
+                                Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                        Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
+                    }
+                }, null);
+            } catch (CameraAccessException | IOException e) {
+                Log.e(TAG, "Exception in startRecording: " + e.getMessage());
+            }
         }
+
     }
 
 
