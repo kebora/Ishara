@@ -65,7 +65,6 @@ public class GestureFeedback {
                 break;
             case DISABLE:
             default:
-                Log.d("GestureFeedback", "No functionality attached to this gesture");
                 break;
         }
     }

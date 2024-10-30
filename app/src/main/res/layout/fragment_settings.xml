@@ -10,6 +10,7 @@
 <TextView
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="center"
     android:text="Set your timer value (in seconds)"
     />
     <EditText
@@ -19,19 +20,7 @@
         android:layout_marginTop="10dp"
         android:hint="Timer Value"
         android:inputType="number"
-        />
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Set your app timeout value (in seconds)"
-        android:layout_marginTop="10dp"
-        />
-    <EditText
-        android:id="@+id/etAppTimeoutValue"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="10dp"
-        android:hint="App Timeout"
-        android:inputType="number"
+        android:background="@drawable/etradius"
+        android:gravity="center"
         />
 </LinearLayout>

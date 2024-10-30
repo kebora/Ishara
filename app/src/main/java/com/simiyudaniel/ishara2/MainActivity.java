@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
@@ -40,6 +41,7 @@ import com.simiyudaniel.ishara2.gesturefeedback.GestureFeedback;
 import com.simiyudaniel.ishara2.gestureisharamodel.GestureRecognition;
 import com.simiyudaniel.ishara2.permissions.PermissionsChecker;
 import com.simiyudaniel.ishara2.timer.TimerFunction;
+import com.simiyudaniel.ishara2.utils.SoundPlayer;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -48,7 +50,7 @@ import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SettingsFragment.SettingsListener {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSIONS_CODE = 1001;
@@ -62,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
     private String videoFilePath;
 
     private ImageButton recordButton;
-    private TextView timerText, gestureTextView;
+    private TextView timerText, gestureTextView, timerTagText;
 
     // Gesture recognition
     private GestureRecognition gestureRecognition;
@@ -83,14 +85,33 @@ public class MainActivity extends AppCompatActivity {
     // for camera flipping
     private boolean isUsingFrontCamera = false;
     ImageButton flipCameraBtn;
+    // for the timer
+    private int timerValue;
+    //
+    SoundPlayer soundPlayerBeep,soundPlayerRecStarted,
+            soundPlayerRecStopped,soundPlayerPaused;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // sound player
+        soundPlayerBeep = new SoundPlayer(MainActivity.this,R.raw.alert);
+        soundPlayerRecStarted = new SoundPlayer(MainActivity.this,R.raw.recording_started);
+        soundPlayerRecStopped = new SoundPlayer(MainActivity.this,R.raw.recording_stopped);
+        soundPlayerPaused = new SoundPlayer(MainActivity.this,R.raw.recording_paused);
+
         // Initialize ExecutorService
         executorService = Executors.newSingleThreadExecutor();
+
+        // Retrieve shared prefs value ::: for app settings Fragment
+        SharedPreferences sharedPreferences = getSharedPreferences("ishara_prefs", MODE_PRIVATE);
+        timerValue = sharedPreferences.getInt("timer_value", 10);
+
+        // set the tag text for the timer
+        timerTagText = findViewById(R.id.tag_text);
+        timerTagText.setText(timerValue+"s");
 
         // Initialize UI components
         textureView = findViewById(R.id.texture_view);
@@ -98,8 +119,10 @@ public class MainActivity extends AppCompatActivity {
         ImageButton timerImgBtn = findViewById(R.id.timer_img_btn);
         timerText = findViewById(R.id.timer_text);
         gestureTextView = findViewById(R.id.gesture_text_view);
+
         // settings imageview
         ImageView ivSettings = findViewById(R.id.menu_icon);
+
         // Gestures imageview
         ImageView ivGestures = findViewById(R.id.ivGestures);
         /*
@@ -135,13 +158,16 @@ public class MainActivity extends AppCompatActivity {
 
         //flip camera button
         flipCameraBtn = findViewById(R.id.switch_camera_img_btn);
+        //
         flipCameraBtn.setOnClickListener(v -> {
-            isUsingFrontCamera = !isUsingFrontCamera;
-            if (cameraDevice != null) {
-                cameraDevice.close();
-                cameraDevice = null;
+            if(!isRecording){
+                isUsingFrontCamera = !isUsingFrontCamera;
+                if (cameraDevice != null) {
+                    cameraDevice.close();
+                    cameraDevice = null;
+                }
+                openCamera(isUsingFrontCamera);
             }
-            openCamera(isUsingFrontCamera);
         });
 
         // Initialize GestureRecognition
@@ -164,15 +190,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Set up Timer Image Button click listener
+        // Timer Image Button
         timerImgBtn.setOnClickListener(v -> {
-            timerText.setVisibility(TextView.VISIBLE);
-            TimerFunction timerFunction = new TimerFunction(timerText, 10, () -> {
-                if (!isRecording) {
-                    startRecording();
-                }
-            });
-            timerFunction.startCountdown();
+            if(!isRecording){
+                startTimerCountDown();
+            }
         });
 
         // Check and request permissions
@@ -183,7 +205,16 @@ public class MainActivity extends AppCompatActivity {
             openCamera(isUsingFrontCamera);
         }
     }
-
+    // function crashes when directly accessed by a gesture
+    private void startTimerCountDown(){
+        timerText.setVisibility(TextView.VISIBLE);
+        TimerFunction timerFunction = new TimerFunction(timerText, timerValue, () -> {
+            if (!isRecording) {
+                startRecording();
+            }
+        });
+        timerFunction.startCountdown();
+    }
     // Called when the user exits with the AlertDialog
     //
     private void releaseResourcesAndExit() {
@@ -472,13 +503,11 @@ public class MainActivity extends AppCompatActivity {
      */
     private void updatePreview() {
         if (cameraDevice == null) {
-            Log.e(TAG, "CameraDevice is null in updatePreview.");
             return;
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
         try {
             cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, null);
-            Log.d(TAG, "Camera preview updated.");
         } catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException in updatePreview: " + e.getMessage());
         }
@@ -488,59 +517,67 @@ public class MainActivity extends AppCompatActivity {
      * Starts video recording by setting up MediaRecorder and configuring the camera session.
      */
     public void startRecording() {
-        if (cameraDevice == null) {
-            Log.e(TAG, "Cannot start recording: CameraDevice is null.");
-            return;
-        }
-        try {
-            setUpMediaRecorder();
-            SurfaceTexture texture = textureView.getSurfaceTexture();
-            if (texture == null) {
-                Log.e(TAG, "SurfaceTexture is null in startRecording.");
+        /**
+         * Only run function if not already recording
+         * todo: check on possibility of starting new recording even when one already exists
+         */
+        if(!isRecording){
+            if (cameraDevice == null) {
+                Toast.makeText(this,"Cannot find Camera!",Toast.LENGTH_SHORT);
                 return;
             }
-            texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
-            Surface previewSurface = new Surface(texture);
-            Surface recordSurface = mediaRecorder.getSurface();
-
-            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-            captureRequestBuilder.addTarget(previewSurface);
-            captureRequestBuilder.addTarget(recordSurface);
-
-            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
-                @Override
-                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    cameraCaptureSessions = cameraCaptureSession;
-                    updatePreview();
-                    runOnUiThread(() -> {
-                        try {
-                            mediaRecorder.start();
-                            isRecording = true;
-
-                            // Start and display the recording timer
-                            recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
-                            recordingTimer.start();
-                            recordingTimer.setVisibility(View.VISIBLE);
-
-                            // Update button and notify user
-                            recordButton.setImageResource(R.drawable.pause_record_icon);
-                            Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
-                            Log.d(TAG, "Recording started.");
-                        } catch (IllegalStateException e) {
-                            Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
-                        }
-                    });
+            try {
+                setUpMediaRecorder();
+                SurfaceTexture texture = textureView.getSurfaceTexture();
+                if (texture == null) {
+                    Log.e(TAG, "SurfaceTexture is null in startRecording.");
+                    return;
                 }
+                texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
+                Surface previewSurface = new Surface(texture);
+                Surface recordSurface = mediaRecorder.getSurface();
 
-                @Override
-                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
-                    Log.e(TAG, "Camera capture session configuration failed during recording.");
-                }
-            }, null);
-        } catch (CameraAccessException | IOException e) {
-            Log.e(TAG, "Exception in startRecording: " + e.getMessage());
+                captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+                captureRequestBuilder.addTarget(previewSurface);
+                captureRequestBuilder.addTarget(recordSurface);
+
+                cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
+                    @Override
+                    public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                        cameraCaptureSessions = cameraCaptureSession;
+                        updatePreview();
+                        runOnUiThread(() -> {
+                            try {
+                                mediaRecorder.start();
+                                isRecording = true;
+
+                                // Start and display the recording timer
+                                recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+                                recordingTimer.start();
+                                recordingTimer.setVisibility(View.VISIBLE);
+
+                                //
+                                recordButton.setImageResource(R.drawable.pause_record_icon);
+                                Toast.makeText(MainActivity.this, "Recording Started", Toast.LENGTH_SHORT).show();
+                                // notify user ::: audio file
+                                soundPlayerRecStarted.playSound();
+                                //
+                            } catch (IllegalStateException e) {
+                                Log.e(TAG, "Error starting MediaRecorder: " + e.getMessage());
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                        Toast.makeText(MainActivity.this, "Configuration Change", Toast.LENGTH_SHORT).show();
+                    }
+                }, null);
+            } catch (CameraAccessException | IOException e) {
+                Log.e(TAG, "Exception in startRecording: " + e.getMessage());
+            }
         }
+
     }
 
 
@@ -548,16 +585,16 @@ public class MainActivity extends AppCompatActivity {
      * Pause Recording
      */
     public void pauseRecording() {
-        if (isRecording) {
+        if (isRecording && !isPaused) {
             mediaRecorder.pause();
             isPaused = true;
             isRecording = false;
-
-            // Pause the recording timer and save the offset
+            //
             recordingTimer.stop();
             pauseOffset = SystemClock.elapsedRealtime() - recordingTimer.getBase();
             recordButton.setImageResource(R.drawable.stop_record_icon);
-            Log.d(TAG, "Recording paused.");
+            //
+            soundPlayerPaused.playSound();
         }
     }
 
@@ -569,12 +606,12 @@ public class MainActivity extends AppCompatActivity {
             mediaRecorder.resume();
             isPaused = false;
             isRecording = true;
-
-            // Resume the timer from where it left off
+            // Resume timer
             recordingTimer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
             recordingTimer.start();
             recordButton.setImageResource(R.drawable.pause_record_icon);
-            Log.d(TAG, "Recording resumed.");
+            //
+            soundPlayerRecStarted.playSound();
         }
     }
 
@@ -583,20 +620,17 @@ public class MainActivity extends AppCompatActivity {
      */
     public void stopRecording() {
         if (!isRecording) {
-            Log.e(TAG, "Cannot stop recording: Not currently recording.");
             return;
         }
         try {
             mediaRecorder.stop();
             mediaRecorder.reset();
             isRecording = false;
-            // Stop and reset the timer
             recordingTimer.stop();
             recordingTimer.setVisibility(View.GONE);
-            pauseOffset = 0; // Reset the pause offset
+            pauseOffset = 0;
             recordButton.setImageResource(R.drawable.start_record_icon);
-            Toast.makeText(this, "Recording Stopped", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Recording stopped.");
+            soundPlayerRecStopped.playSound();
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues values = new ContentValues();
@@ -607,8 +641,7 @@ public class MainActivity extends AppCompatActivity {
             openCamera(isUsingFrontCamera);
 
         } catch (RuntimeException e) {
-            Log.e(TAG, "RuntimeException while stopping MediaRecorder: " + e.getMessage());
-            Toast.makeText(this, "Failed to stop recording properly.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Error in stopping recording!.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -664,12 +697,12 @@ public class MainActivity extends AppCompatActivity {
         // Set orientation hint based on device rotation
         // Calculate orientation hint based on camera sensor orientation and device rotation
         int rotation = getWindowManager().getDefaultDisplay().getRotation();
-        int sensorOrientation = getCameraSensorOrientation(); // Get sensor orientation
+        // Get sensor orientation
+        int sensorOrientation = getCameraSensorOrientation();
         int orientationHint = (sensorOrientation + getDeviceRotationDegrees(rotation-90+360)) % 360;
 
         mediaRecorder.setOrientationHint(orientationHint);
         mediaRecorder.prepare();
-        Log.d(TAG, "MediaRecorder configured.");
     }
     // Helper function to get camera sensor orientation
     private int getCameraSensorOrientation() throws CameraAccessException {
@@ -717,7 +750,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Release all resources
         closeCameraSafely();
         releaseMediaRecorderSafely();
         releaseGestureRecognitionSafely();
@@ -776,7 +808,6 @@ public class MainActivity extends AppCompatActivity {
         if (executorService != null && !executorService.isShutdown()) {
             executorService.shutdownNow();
             executorService = null;
-            Log.d(TAG, "ExecutorService shut down.");
         }
     }
     /**
@@ -831,4 +862,13 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
+
+    @Override
+    public void onSettingsSaved(int timerValue) {
+        updateTagText(timerValue);
+    }
+    //
+    private void updateTagText(int timerValue) {
+        timerTagText.setText(timerValue + "s");
+    }
 }

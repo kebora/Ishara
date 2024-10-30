@@ -33,7 +33,7 @@ public class GesturesFragment extends DialogFragment {
     // Enum for gesture functionalities
     public enum GestureFunctionalities {
         PEEK_MODE, START_RECORDING, RESUME_RECORDING, PAUSE_RECORDING,
-        STOP_RECORDING, START_TIMER, DISABLE
+        STOP_RECORDING, DISABLE
     }
 
     @Override
@@ -65,11 +65,14 @@ public class GesturesFragment extends DialogFragment {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         imageAssociationSpinner.setAdapter(adapter);
 
-        // Set spinner value for current image
+        // Set spinner value for the current image
         imageAssociationSpinner.setSelection(getSpinnerIndexForImage(labels[currentIndex]));
 
         nextButton = view.findViewById(R.id.bt_next);
         previousButton = view.findViewById(R.id.bt_previous);
+
+        // Hide previousButton if the index is 0
+        updateButtonVisibility();
 
         nextButton.setOnClickListener(v -> {
             if (currentIndex < imageResources.length - 1) {
@@ -93,6 +96,7 @@ public class GesturesFragment extends DialogFragment {
         return builder.create();
     }
 
+
     private void initializeDefaultValues() {
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
@@ -103,13 +107,13 @@ public class GesturesFragment extends DialogFragment {
             editor.putString("ok", GestureFunctionalities.PAUSE_RECORDING.name());
         }
         if (!sharedPreferences.contains("like")) {
-            editor.putString("like", GestureFunctionalities.DISABLE.name());
+            editor.putString("like", GestureFunctionalities.RESUME_RECORDING.name());
         }
         if (!sharedPreferences.contains("one")) {
             editor.putString("one", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("peace")) {
-            editor.putString("peace", GestureFunctionalities.PAUSE_RECORDING.name());
+            editor.putString("peace", GestureFunctionalities.DISABLE.name());
         }
         if (!sharedPreferences.contains("palm")) {
             editor.putString("palm", GestureFunctionalities.DISABLE.name());
