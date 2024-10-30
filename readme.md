@@ -10,4 +10,7 @@ Additionally, the use of Audio feedback makes it possible to follow up on what h
 See the screenshots attached:
 ![Ishara Portrait View](infoPics/portrait.png)
 
+Have a look at some of the functionalities you can control with gestures below:
+![Ishara Gesture Functionalities](infoPics/portrait2.png)
+
 
