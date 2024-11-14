@@ -481,24 +481,6 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     }
 
     /**
-     * Opens the camera for preview without affecting MediaRecorder session.
-     */
-    private void openPreviewOnly(String cameraId) {
-        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        try {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-            manager.openCamera(cameraId, stateCallback, null);
-        } catch (CameraAccessException e) {
-            Log.e(TAG, "CameraAccessException: " + e.getMessage());
-        }
-    }
-
-
-
-
-    /**
      * Updates the camera preview by setting the repeating request.
      */
     private void updatePreview() {
@@ -519,7 +501,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     public void startRecording() {
         /**
          * Only run function if not already recording
-         * todo: check on possibility of starting new recording even when one already exists
+         * ignore in subsequent detections
          */
         if(!isRecording){
             if (cameraDevice == null) {
