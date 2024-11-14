@@ -15,4 +15,10 @@ See the screenshots attached:
 Some sample detections are as shown below:
 ![Ishara Portrait View](infoPics/readme2.png)
 
+## Installation
+To test the application;
+
+- Clone the repository, import the libraries and simply run the project.
+- Test out the application on playstore at: [Ishara at Playstore](https://play.google.com/apps/internaltest/4701559001780237625)
+
 
