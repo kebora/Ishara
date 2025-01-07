@@ -499,13 +499,13 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
      * Starts video recording by setting up MediaRecorder and configuring the camera session.
      */
     public void startRecording() {
-        /**
+        /*
          * Only run function if not already recording
          * ignore in subsequent detections
          */
         if(!isRecording){
             if (cameraDevice == null) {
-                Toast.makeText(this,"Cannot find Camera!",Toast.LENGTH_SHORT);
+                Toast.makeText(this,"Cannot find Camera!",Toast.LENGTH_SHORT).show();
                 return;
             }
             try {
