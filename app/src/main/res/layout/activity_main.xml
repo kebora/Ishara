@@ -87,7 +87,7 @@
         android:id="@+id/switch_camera_img_btn"
         android:layout_width="65dp"
         android:layout_height="65dp"
-        android:layout_alignRight="@id/frame_timer"
+        android:layout_alignEnd="@id/frame_timer"
         android:layout_marginBottom="20dp"
         android:background="@drawable/rounded_btn_alt_bg"
         android:src="@drawable/flip_camera"
@@ -126,11 +126,11 @@
         android:id="@+id/timer_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="0"
+        android:text="@string/default_zero"
         android:visibility="gone"
         android:textColor="@color/red"
         android:background="@drawable/rounded_button_background"
-        android:textSize="60dp"
+        android:textSize="60sp"
         android:padding="20dp"
         android:fontFamily="@font/montserrat_regular"
         opencv:layout_constraintBottom_toBottomOf="@+id/texture_view"
@@ -144,8 +144,18 @@
         android:layout_height="wrap_content"
         android:src="@drawable/ishara_teal"
         android:layout_marginTop="10dp"
-        android:layout_marginLeft="10dp"
+        android:layout_marginStart="10dp"
         opencv:layout_constraintStart_toStartOf="parent"
+        opencv:layout_constraintTop_toTopOf="@+id/switch1" />
+
+    <ImageView
+        android:id="@+id/ivAccessibilitySettings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="10dp"
+        android:src="@drawable/baseline_settings_accessibility_24"
+        opencv:layout_constraintEnd_toEndOf="parent"
         opencv:layout_constraintTop_toTopOf="@+id/switch1" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
